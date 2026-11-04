@@ -70,7 +70,7 @@ def get_client():
             _mock = MockRmsClient()
         return _mock
     if not cfg.get("serviceSecret") or not cfg.get("licenseKey"):
-        raise RmsError(0, "APIキーが未設定です。[設定]タブで serviceSecret / licenseKey を登録してください。")
+        raise RmsError(0, "尚未设置API密钥。请在“设置”中填写 serviceSecret / licenseKey。")
     return RmsClient(cfg["serviceSecret"], cfg["licenseKey"], wait_ms=int(cfg.get("waitMs", 700)))
 
 
@@ -235,7 +235,7 @@ def start_job(kind, target, *args):
         if JOB["running"]:
             return False
         JOB.update({"running": True, "kind": kind, "done": 0, "total": None,
-                    "message": "開始しました", "errors": [], "finished": False})
+                    "message": "已开始", "errors": [], "finished": False})
     t = threading.Thread(target=target, args=args, daemon=True)
     t.start()
     return True
@@ -253,17 +253,17 @@ def job_download():
         def progress(fetched, total):
             JOB["done"] = fetched
             JOB["total"] = total
-            JOB["message"] = f"{fetched}件 取得済み" + (f" / 全{total}件" if total else "")
+            JOB["message"] = f"{fetched}件已获取" + (f" / 共{total}件" if total else "")
 
         for item in client.iter_all_items(progress_cb=progress):
             save_downloaded(item)
             count += 1
-        add_log("", "商品一覧ダウンロード", "OK", f"{count}件")
-        finish_job(f"完了：{count}件をダウンロードしました")
+        add_log("", "下载商品列表", "OK", f"{count}件")
+        finish_job(f"完成：{count}件商品已下载")
     except Exception as e:
-        add_log("", "商品一覧ダウンロード", "ERROR", str(e))
+        add_log("", "下载商品列表", "ERROR", str(e))
         JOB["errors"].append(str(e))
-        finish_job(f"エラー：{e}")
+        finish_job(f"错误：{e}")
 
 
 PATCH_KEYS = [
@@ -341,13 +341,13 @@ def job_apply(manage_numbers):
                                 for vid in (edited.get("variants") or {})]
                         if invs:
                             client.bulk_upsert_inventory(invs)
-                    add_log(mn, "新規登録", "OK")
+                    add_log(mn, "新增商品", "OK")
                 else:
                     raw = json.loads(row["raw"])
                     patch = diff_item(raw, edited)
                     if patch:
                         send_with_retry(lambda b: client.patch_item(mn, b), patch)
-                    add_log(mn, "更新", "OK", "変更項目: " + ", ".join(patch.keys()) if patch else "変更なし")
+                    add_log(mn, "更新", "OK", "变更字段： " + ", ".join(patch.keys()) if patch else "无变化")
                 edited["manageNumber"] = mn
                 with db() as conn:
                     s = item_summary(edited)
@@ -361,13 +361,13 @@ def job_apply(manage_numbers):
             except Exception as e:
                 ng += 1
                 JOB["errors"].append(f"{mn}: {e}")
-                add_log(mn, "新規登録" if row["is_new"] else "更新", "ERROR", str(e))
+                add_log(mn, "新增商品" if row["is_new"] else "更新", "ERROR", str(e))
             JOB["done"] += 1
-            JOB["message"] = f"{JOB['done']}/{len(rows)}件 処理済み（成功{ok} 失敗{ng}）"
-        finish_job(f"完了：成功{ok}件 / 失敗{ng}件")
+            JOB["message"] = f"{JOB['done']}/{len(rows)}件已处理（成功{ok} 失败{ng}）"
+        finish_job(f"完成：成功{ok}件 / 失败{ng}件")
     except Exception as e:
         JOB["errors"].append(str(e))
-        finish_job(f"エラー：{e}")
+        finish_job(f"错误：{e}")
 
 
 # ----------------- 復元予約（スケジューラ） -----------------
@@ -428,7 +428,7 @@ def job_scheduled_restore(job_id):
         with db() as conn:
             job = conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
         if not job or job["status"] != "running":
-            finish_job("予約が見つからないか実行できない状態です")
+            finish_job("预约不存在或当前状态不能执行")
             return
         client = get_client()
         targets = json.loads(job["targets"])
@@ -477,29 +477,29 @@ def job_scheduled_restore(job_id):
                                    hide_item=?, min_price=?, max_price=? WHERE manage_number=?""",
                                 (json.dumps(item, ensure_ascii=False), s["title"], s["tagline"],
                                  s["item_number"], s["hide_item"], s["min_price"], s["max_price"], mn))
-                    add_log(mn, "予約復元", "OK", "復元項目: " + ", ".join(patch.keys()))
+                    add_log(mn, "预约恢复", "OK", "恢复字段： " + ", ".join(patch.keys()))
                     details.append(f"{mn}: OK ({', '.join(patch.keys())})")
                 else:
-                    add_log(mn, "予約復元", "OK", "変更なし（すでに復元済み）")
-                    details.append(f"{mn}: 変更なし")
+                    add_log(mn, "预约恢复", "OK", "无变化（已恢复）")
+                    details.append(f"{mn}: 无变化")
                 ok += 1
             except Exception as e:
                 ng += 1
-                add_log(mn, "予約復元", "ERROR", str(e))
+                add_log(mn, "预约恢复", "ERROR", str(e))
                 details.append(f"{mn}: ERROR {e}")
                 JOB["errors"].append(f"{mn}: {e}")
             JOB["done"] += 1
-            JOB["message"] = f"予約復元 {JOB['done']}/{len(targets)}件（成功{ok} 失敗{ng}）"
+            JOB["message"] = f"预约恢复 {JOB['done']}/{len(targets)}件（成功{ok} 失败{ng}）"
         status = "done" if ng == 0 else "error"
         with db() as conn:
             conn.execute("UPDATE jobs SET status=?, result=?, executed_at=? WHERE id=?",
                          (status, "\n".join(details)[:8000], now(), job_id))
-        finish_job(f"予約復元 完了：成功{ok}件 / 失敗{ng}件")
+        finish_job(f"预约恢复 完成：成功{ok}件 / 失败{ng}件")
     except Exception as e:
         with db() as conn:
             conn.execute("UPDATE jobs SET status='error', result=? WHERE id=?", (str(e)[:2000], job_id))
         JOB["errors"].append(str(e))
-        finish_job(f"予約復元エラー：{e}")
+        finish_job(f"预约恢复错误：{e}")
 
 
 def _try_start_scheduled(job_id, allowed_status=("pending",)):
@@ -537,9 +537,9 @@ def scheduler_loop():
                     # 時刻を過ぎていても実行する。復元は「セール前の状態に戻す」方向の
                     # 操作なので遅れても安全な一方、保留のままだと販売期間が過ぎた商品が
                     # 買えない状態で放置されてしまうため。
-                    add_log("", "予約復元", "WARN",
-                            f"予約#{r['id']} は実行時刻を{int(overdue_min)}分過ぎていたため"
-                            "今から自動実行します。")
+                    add_log("", "预约恢复", "WARN",
+                            f"预约#{r['id']} 已超过执行时间{int(overdue_min)}分钟，"
+                            "现在自动补执行。")
                 _try_start_scheduled(r["id"])
         except Exception:
             pass
@@ -549,23 +549,23 @@ def scheduler_loop():
 def api_jobs():
     if request.method == "POST":
         data = request.json or {}
-        name = (data.get("name") or "").strip() or "復元予約"
+        name = (data.get("name") or "").strip() or "恢复预约"
         run_at = (data.get("runAt") or "").strip()
         targets = data.get("targets") or []
         restore_price = 1 if data.get("restorePrice", True) else 0
         period_mode = data.get("periodMode", "none")
         if not re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$", run_at):
-            return jsonify({"message": "実行日時を指定してください"}), 400
+            return jsonify({"message": "请指定执行时间"}), 400
         if run_at <= time.strftime("%Y-%m-%dT%H:%M"):
-            return jsonify({"message": "実行日時は未来の日時を指定してください"}), 400
+            return jsonify({"message": "执行时间必须晚于当前时间"}), 400
         if not targets:
-            return jsonify({"message": "対象商品が選択されていません（商品一覧でチェックしてください）"}), 400
+            return jsonify({"message": "尚未选择目标商品（请在商品列表中勾选）"}), 400
         if not restore_price and period_mode == "none":
-            return jsonify({"message": "復元する内容（価格または販売期間）を選択してください"}), 400
+            return jsonify({"message": "请选择要恢复的内容（价格或销售期间）"}), 400
         # 現在のローカル値（＝セール設定前の値）をスナップショット
         snapshot, missing = make_snapshot(targets)
         if missing:
-            return jsonify({"message": f"ローカルにない商品が含まれています: {', '.join(missing[:5])}"}), 400
+            return jsonify({"message": f"包含本机不存在的商品： {', '.join(missing[:5])}"}), 400
         with db() as conn:
             cur = conn.execute(
                 """INSERT INTO jobs(name,run_at,targets,snapshot,restore_price,period_mode,status,created_at)
@@ -574,8 +574,8 @@ def api_jobs():
                  restore_price, period_mode, now()))
             job_id = cur.lastrowid
         return jsonify({"ok": True, "id": job_id,
-                        "message": f"予約#{job_id} を作成しました（{len(targets)}件・{run_at.replace('T',' ')} 実行）。"
-                                   "現在の価格・販売期間を保存済み。このあとセール設定を反映してOKです。"})
+                        "message": f"预约#{job_id} 已创建（{len(targets)}件・{run_at.replace('T',' ')} 执行）。"
+                                   "已保存当前价格和销售期间，之后可应用促销设置。"})
     with db() as conn:
         rows = conn.execute("SELECT id,name,run_at,targets,restore_price,period_mode,status,result,"
                             "created_at,executed_at FROM jobs ORDER BY id DESC LIMIT 100").fetchall()
@@ -595,15 +595,15 @@ def api_job_cancel(job_id):
             "UPDATE jobs SET status='canceled' WHERE id=? AND status IN ('pending','needs_confirm','error')",
             (job_id,))
     if cur.rowcount == 0:
-        return jsonify({"message": "取消できない状態です（実行中または完了済み）"}), 400
-    return jsonify({"ok": True, "message": f"予約#{job_id} を取り消しました"})
+        return jsonify({"message": "当前不能取消（正在执行或已经完成）"}), 400
+    return jsonify({"ok": True, "message": f"预约#{job_id} 已取消"})
 
 
 @app.route("/api/jobs/<int:job_id>/run", methods=["POST"])
 def api_job_run(job_id):
     if _try_start_scheduled(job_id, allowed_status=("pending", "needs_confirm", "error")):
-        return jsonify({"ok": True, "message": f"予約#{job_id} を実行開始しました"})
-    return jsonify({"message": "実行できません（別の処理が実行中か、状態が不正です）"}), 409
+        return jsonify({"ok": True, "message": f"预约#{job_id} 已开始执行"})
+    return jsonify({"message": "无法执行（其他任务正在运行，或当前状态不允许）"}), 409
 
 
 # ----------------- セール専用機能 -----------------
@@ -616,14 +616,14 @@ def api_sale_flag():
     if data.get("clearAll"):
         with db() as conn:
             conn.execute("UPDATE items SET sale_flag=0")
-        return jsonify({"ok": True, "message": "セール対象をすべて解除しました"})
+        return jsonify({"ok": True, "message": "已清空全部促销对象"})
     if not targets:
-        return jsonify({"message": "対象商品がありません"}), 400
+        return jsonify({"message": "没有目标商品"}), 400
     q = ",".join("?" * len(targets))
     with db() as conn:
         conn.execute(f"UPDATE items SET sale_flag=? WHERE manage_number IN ({q})", [value] + targets)
     return jsonify({"ok": True,
-                    "message": f"{len(targets)}件をセール対象に{'追加' if value else 'から解除'}しました"})
+                    "message": f"{len(targets)}件商品的促销标记已{'添加' if value else '移除'}完成"})
 
 
 def _save_sale_history(name, targets, snapshot):
@@ -639,14 +639,14 @@ def _save_sale_history(name, targets, snapshot):
 def api_sale_start():
     """セール開始：履歴保存→セール設定をローカル適用→RMSに反映→自動復元予約を作成"""
     if JOB["running"]:
-        return jsonify({"message": "別の処理が実行中です"}), 409
+        return jsonify({"message": "其他任务正在运行"}), 409
     data = request.json or {}
-    name = (data.get("name") or "").strip() or "セール"
+    name = (data.get("name") or "").strip() or "促销"
     with db() as conn:
         rows = conn.execute("SELECT manage_number FROM items WHERE sale_flag=1").fetchall()
     targets = [r["manage_number"] for r in rows]
     if not targets:
-        return jsonify({"message": "セール対象商品がありません。商品一覧の［セール］列でチェックしてください"}), 400
+        return jsonify({"message": "没有促销商品，请在商品列表的“促销”列勾选"}), 400
 
     price_mode = data.get("priceMode", "")
     price_value = data.get("priceValue", "")
@@ -659,24 +659,24 @@ def api_sale_start():
     restore_period_mode = data.get("restorePeriodMode", "snapshot")
 
     if not price_mode and not period_start and not period_end and not set_ref:
-        return jsonify({"message": "セール内容（価格・期間・二重価格のいずれか）を設定してください"}), 400
+        return jsonify({"message": "请设置促销内容（售价、销售期间或对比价至少一项）"}), 400
     if price_mode and price_value == "":
-        return jsonify({"message": "価格の値を入力してください"}), 400
+        return jsonify({"message": "请输入价格数值"}), 400
     if not price_mode and str(price_value).strip() != "":
         # 値だけ入れて［値引き方法］が未選択だと、黙って価格変更がスキップされ
         # 「割引が効かない」ように見えるため、ここで止める
-        return jsonify({"message": "［値引き方法］が選択されていません。"
-                                   "値を入力した場合は「率で値引き（%）」などを選んでください"}), 400
+        return jsonify({"message": "尚未选择“降价方式”。"
+                                   "输入数值后，还需要选择“按比例降价（%）”等方式"}), 400
     if auto_restore:
         if not re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$", restore_at):
-            return jsonify({"message": "自動復元の日時を指定してください"}), 400
+            return jsonify({"message": "请指定自动恢复时间"}), 400
         if restore_at <= time.strftime("%Y-%m-%dT%H:%M"):
-            return jsonify({"message": "自動復元の日時は未来を指定してください"}), 400
+            return jsonify({"message": "自动恢复时间必须晚于当前时间"}), 400
 
     # 1) 履歴保存（2回分保持）
     snapshot, missing = make_snapshot(targets)
     if missing:
-        return jsonify({"message": f"ローカルにない商品が含まれています: {', '.join(missing[:5])}"}), 400
+        return jsonify({"message": f"包含本机不存在的商品： {', '.join(missing[:5])}"}), 400
     _save_sale_history(name, targets, snapshot)
 
     # 2) セール設定をローカル適用
@@ -732,19 +732,19 @@ def api_sale_start():
             cur = conn.execute(
                 """INSERT INTO jobs(name,run_at,targets,snapshot,restore_price,period_mode,status,created_at)
                    VALUES(?,?,?,?,1,?,'pending',?)""",
-                (f"{name} 自動戻し", restore_at, json.dumps(targets),
+                (f"{name} 自动恢复", restore_at, json.dumps(targets),
                  json.dumps(snapshot, ensure_ascii=False), restore_period_mode, now()))
             job_id = cur.lastrowid
 
     # 4) RMSに反映（バックグラウンド）
     started = start_job("apply", job_apply, targets)
-    add_log("", "セール開始", "OK",
-            f"{name}: 対象{len(targets)}件 変更{changed}件 復元予約#{job_id or 'なし'}")
+    add_log("", "开始促销", "OK",
+            f"{name}: 对象{len(targets)}件 修改{changed}件 恢复预约#{job_id or '无'}")
     return jsonify({"ok": True, "jobId": job_id, "changed": changed, "targets": len(targets),
                     "applyStarted": started,
-                    "message": f"セール設定を適用しました（対象{len(targets)}件）。"
-                               + (f"RMSへの反映を開始しました。" if started else "反映は[RMSに反映]から実行してください。")
-                               + (f" 自動復元予約#{job_id}（{restore_at.replace('T',' ')}）を作成済み。" if job_id else "")})
+                    "message": f"已应用促销设置（对象{len(targets)}件）。"
+                               + (f"已开始提交到RMS。" if started else "请进入“提交到RMS”执行提交。")
+                               + (f" 自动恢复预约#{job_id}（{restore_at.replace('T',' ')}）已创建。" if job_id else "")})
 
 
 # ---------- 楽天スーパーSALEサーチ イベント商品申請 ----------
@@ -840,7 +840,7 @@ def api_sale_application_csv():
             except UnicodeDecodeError:
                 continue
         if text is None:
-            return jsonify({"message": "既存CSVの文字コードを判定できません"}), 400
+            return jsonify({"message": "无法识别现有CSV的编码"}), 400
         for i, r in enumerate(csv.reader(io.StringIO(text))):
             if not r or not (r[0] or "").strip():
                 continue
@@ -862,12 +862,12 @@ def api_sale_application_csv():
         # 中身が0件のCSVを黙って落とすと「何も入っていない」と混乱するため止める
         total_flagged = len(_sale_application_rows())
         if total_flagged == 0:
-            msg = ("セール対象の商品が1件もありません。"
-                   "［商品一覧］でセール列にチェックを入れてから実行してください。")
+            msg = ("尚未标记任何促销商品。"
+                   "请先在“商品列表”的促销列中勾选商品。")
         else:
-            msg = (f"条件に合う商品がありません（セール対象{total_flagged}件はすべて掲載条件未達）。"
-                   "二重価格に対して10%以上の値引きが必要です。"
-                   "「出力対象」を『すべて』にすると全件出力できます。")
+            msg = (f"没有符合条件的商品（促销对象{total_flagged}件均未达到本工具的门槛）。"
+                   "相对于对比价需降价10%及以上。"
+                   "将导出范围设为“全部促销商品”可导出全部商品。")
         return jsonify({"message": msg}), 400
 
     buf = io.StringIO()
@@ -875,7 +875,7 @@ def api_sale_application_csv():
     w.writerow([col_a, col_b])
     w.writerows(merged)
     data = io.BytesIO(buf.getvalue().encode("cp932", errors="replace"))
-    add_log("", "申請用CSV作成", "ok", f"{len(merged)}件（うちセール対象{len(rows)}件）")
+    add_log("", "生成申请CSV", "ok", f"{len(merged)}件（其中促销商品{len(rows)}件）")
     return send_file(data, mimetype="text/csv", as_attachment=True,
                      download_name=f"event_application_{time.strftime('%Y%m%d')}.csv")
 
@@ -900,23 +900,23 @@ def api_sale_restore():
     with db() as conn:
         h = conn.execute("SELECT * FROM sale_history WHERE id=?", (hid,)).fetchone()
     if not h:
-        return jsonify({"message": "履歴が見つかりません"}), 404
+        return jsonify({"message": "未找到历史记录"}), 404
     if when == "schedule":
         if not re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$", run_at) or run_at <= time.strftime("%Y-%m-%dT%H:%M"):
-            return jsonify({"message": "未来の日時を指定してください"}), 400
+            return jsonify({"message": "请选择晚于当前时间的时间"}), 400
     else:
         run_at = time.strftime("%Y-%m-%dT%H:%M")
     with db() as conn:
         cur = conn.execute(
             """INSERT INTO jobs(name,run_at,targets,snapshot,restore_price,period_mode,status,created_at)
                VALUES(?,?,?,?,1,?,'pending',?)""",
-            (f"履歴復元: {h['name']}", run_at, h["targets"], h["snapshot"], period_mode, now()))
+            (f"历史恢复： {h['name']}", run_at, h["targets"], h["snapshot"], period_mode, now()))
         job_id = cur.lastrowid
     if when == "now":
         if _try_start_scheduled(job_id):
-            return jsonify({"ok": True, "message": f"履歴「{h['name']}」の値への復元を開始しました（予約#{job_id}）"})
-        return jsonify({"message": "別の処理が実行中です。処理完了後に[予約]タブから実行してください"}), 409
-    return jsonify({"ok": True, "message": f"復元予約#{job_id} を作成しました（{run_at.replace('T',' ')} 実行）"})
+            return jsonify({"ok": True, "message": f"历史记录“{h['name']}”的恢复已开始（预约#{job_id}）"})
+        return jsonify({"message": "其他任务正在运行，请在完成后进入“预约”执行"}), 409
+    return jsonify({"ok": True, "message": f"恢复预约#{job_id} 已创建（{run_at.replace('T',' ')} 执行）"})
 
 
 # ----------------- ルーティング -----------------
@@ -967,7 +967,7 @@ def api_settings():
 def api_test():
     try:
         get_client().test_connection()
-        return jsonify({"ok": True, "message": "接続成功"})
+        return jsonify({"ok": True, "message": "连接成功"})
     except Exception as e:
         return jsonify({"ok": False, "message": str(e)}), 400
 
@@ -975,7 +975,7 @@ def api_test():
 @app.route("/api/download", methods=["POST"])
 def api_download():
     if not start_job("download", job_download):
-        return jsonify({"ok": False, "message": "別の処理が実行中です"}), 409
+        return jsonify({"ok": False, "message": "其他任务正在运行"}), 409
     return jsonify({"ok": True})
 
 
@@ -1125,7 +1125,7 @@ def api_item(mn):
     data = request.json or {}
     item = data.get("item")
     if not item:
-        return jsonify({"message": "item がありません"}), 400
+        return jsonify({"message": "缺少item商品数据"}), 400
     item["manageNumber"] = mn
     save_local_edit(mn, item, is_new=(row["is_new"] if row else True) if data.get("isNew") is None else data["isNew"])
     return jsonify({"ok": True})
@@ -1139,30 +1139,30 @@ def api_item_price(mn):
     try:
         price = int(round(float(data.get("price"))))
     except (TypeError, ValueError):
-        return jsonify({"message": "価格が数値ではありません"}), 400
+        return jsonify({"message": "价格必须为数值"}), 400
     if price < 1:
-        return jsonify({"message": "価格は1円以上にしてください"}), 400
+        return jsonify({"message": "价格必须为1日元及以上"}), 400
 
     with db() as conn:
         row = conn.execute("SELECT * FROM items WHERE manage_number=?", (mn,)).fetchone()
     if not row:
-        return jsonify({"message": "商品が見つかりません"}), 404
+        return jsonify({"message": "未找到商品"}), 404
     item = get_effective(row)
     if not item:
-        return jsonify({"message": "商品データがありません"}), 400
+        return jsonify({"message": "没有商品数据"}), 400
 
     targets = [v for v in (item.get("variants") or {}).values()
                if isinstance(v, dict) and to_price(v.get("standardPrice")) is not None]
     if not targets:
-        return jsonify({"message": "価格を持つSKUがありません。［編集］画面から設定してください"}), 400
+        return jsonify({"message": "没有设置价格的SKU，请进入“编辑”窗口设置"}), 400
     if len({to_price(v["standardPrice"]) for v in targets}) > 1:
-        return jsonify({"message": "SKUごとに価格が異なります。［編集］画面から個別に変更してください"}), 400
+        return jsonify({"message": "各SKU价格不同，请进入“编辑”窗口分别修改"}), 400
 
     before = to_price(targets[0]["standardPrice"])
     for v in targets:
         v["standardPrice"] = price_like(v.get("standardPrice"), price)
     save_local_edit(mn, item, is_new=bool(row["is_new"]))
-    add_log(mn, "価格変更（一覧）", "ok", f"{before}円 → {price}円")
+    add_log(mn, "修改列表价格", "ok", f"{before}日元 → {price}日元")
     return jsonify({"ok": True, "price": price, "skuCount": len(targets)})
 
 
@@ -1189,7 +1189,7 @@ def api_bulk_edit():
     targets = data.get("targets") or []
     op = data.get("op") or {}
     if not targets:
-        return jsonify({"message": "対象商品が選択されていません"}), 400
+        return jsonify({"message": "尚未选择目标商品"}), 400
     q = ",".join("?" * len(targets))
     with db() as conn:
         rows = conn.execute(f"SELECT * FROM items WHERE manage_number IN ({q})", targets).fetchall()
@@ -1264,12 +1264,12 @@ def api_bulk_edit():
                     period["end"] = op["end"]
                 item["purchasablePeriod"] = period or None
         else:
-            return jsonify({"message": f"不明な操作: {kind}"}), 400
+            return jsonify({"message": f"未知操作： {kind}"}), 400
         if json.dumps(item, ensure_ascii=False) != before:
             save_local_edit(row["manage_number"], item, is_new=bool(row["is_new"]))
             changed += 1
     return jsonify({"ok": True, "changed": changed,
-                    "message": f"{changed}件をローカル編集しました（[RMSに反映]で反映されます）"})
+                    "message": f"{changed}件已保存到本机（执行“提交到RMS”后才会提交）"})
 
 
 @app.route("/api/apply", methods=["POST"])
@@ -1277,7 +1277,7 @@ def api_apply():
     data = request.json or {}
     targets = data.get("targets") or []
     if not start_job("apply", job_apply, targets):
-        return jsonify({"ok": False, "message": "別の処理が実行中です"}), 409
+        return jsonify({"ok": False, "message": "其他任务正在运行"}), 409
     return jsonify({"ok": True})
 
 
@@ -1286,20 +1286,20 @@ def api_duplicate():
     data = request.json or {}
     src, new = data.get("source"), (data.get("newManageNumber") or "").strip()
     if not re.match(r"^[a-z0-9\-_]{1,32}$", new or ""):
-        return jsonify({"message": "新しい商品管理番号は半角英数小文字/ハイフン/アンダーバー32文字以内で指定してください"}), 400
+        return jsonify({"message": "新商品管理编号限32个字符，仅可用半角小写英文字母、数字、连字符和下划线"}), 400
     with db() as conn:
         row = conn.execute("SELECT * FROM items WHERE manage_number=?", (src,)).fetchone()
         dup = conn.execute("SELECT 1 FROM items WHERE manage_number=?", (new,)).fetchone()
     if not row:
-        return jsonify({"message": "複製元が見つかりません"}), 404
+        return jsonify({"message": "未找到来源商品"}), 404
     if dup:
-        return jsonify({"message": f"商品管理番号 {new} は既に存在します"}), 400
+        return jsonify({"message": f"商品管理编号 {new} 已存在"}), 400
     item = get_effective(row)
     item["manageNumber"] = new
     if data.get("newTitle"):
         item["title"] = data["newTitle"]
     save_local_edit(new, item, is_new=True)
-    return jsonify({"ok": True, "message": f"{new} として複製しました（新規・未反映）"})
+    return jsonify({"ok": True, "message": f"{new} 已复制为新商品（尚未提交）"})
 
 
 CSV_COLUMNS = [
@@ -1329,7 +1329,7 @@ def api_csv_template():
 def api_csv_import():
     f = request.files.get("file")
     if not f:
-        return jsonify({"message": "ファイルがありません"}), 400
+        return jsonify({"message": "未提供文件"}), 400
     raw = f.read()
     text = None
     for enc in ("utf-8-sig", "cp932", "utf-8"):
@@ -1339,7 +1339,7 @@ def api_csv_import():
         except UnicodeDecodeError:
             continue
     if text is None:
-        return jsonify({"message": "文字コードを判定できません（UTF-8またはShift_JISで保存してください）"}), 400
+        return jsonify({"message": "无法识别编码，请使用UTF-8或Shift_JIS保存"}), 400
     reader = csv.DictReader(io.StringIO(text))
     created, errors, skipped = 0, [], 0
     for i, r in enumerate(reader, 2):
@@ -1356,8 +1356,8 @@ def api_csv_import():
             if exists:
                 skipped += 1
                 if len(errors) < 50:
-                    errors.append(f"{i}行目: {mn} は既存商品のためスキップしました"
-                                  "（更新したい場合は［CSVで既存商品を更新］をお使いください）")
+                    errors.append(f"{i}行： {mn} 是已有商品，已跳过"
+                                  "（如需修改，请使用“通过CSV更新已有商品”）")
                 continue
             item = {
                 "manageNumber": mn,
@@ -1397,12 +1397,12 @@ def api_csv_import():
             save_local_edit(mn, item, is_new=True)
             created += 1
         except Exception as e:
-            errors.append(f"{i}行目: {e}")
-    msg = f"{created}件を取り込みました（新規・未反映）"
+            errors.append(f"{i}行： {e}")
+    msg = f"{created}件已导入（新增，尚未提交）"
     if skipped:
-        msg += f" / 既存商品のためスキップ{skipped}件"
+        msg += f" / 已有商品已跳过{skipped}件"
     if len(errors) > skipped:
-        msg += f" / エラー{len(errors) - skipped}件"
+        msg += f" / 错误{len(errors) - skipped}件"
     return jsonify({"ok": True, "created": created, "skipped": skipped,
                     "errors": errors, "message": msg})
 
@@ -1418,7 +1418,7 @@ def api_csv_update():
     """
     f = request.files.get("file")
     if not f:
-        return jsonify({"message": "ファイルがありません"}), 400
+        return jsonify({"message": "未提供文件"}), 400
     raw = f.read()
     text = None
     for enc in ("utf-8-sig", "cp932", "utf-8"):
@@ -1428,7 +1428,7 @@ def api_csv_update():
         except UnicodeDecodeError:
             continue
     if text is None:
-        return jsonify({"message": "文字コードを判定できません（UTF-8またはShift_JISで保存してください）"}), 400
+        return jsonify({"message": "无法识别编码，请使用UTF-8或Shift_JIS保存"}), 400
 
     def cell(row, key):
         """空欄・列なしは None（＝変更しない）。値があれば文字列を返す"""
@@ -1452,12 +1452,12 @@ def api_csv_update():
             if not row:
                 missing.append(mn)
                 if len(errors) < 50:
-                    errors.append(f"{i}行目: {mn} は未ダウンロードのためスキップしました")
+                    errors.append(f"{i}行： {mn} 尚未下载，已跳过")
                 continue
 
             item = get_effective(row)
             if not item:
-                errors.append(f"{i}行目: {mn} の商品データがありません")
+                errors.append(f"{i}行： {mn} 缺少商品数据")
                 continue
             before = json.dumps(item, ensure_ascii=False, sort_keys=True)
 
@@ -1508,7 +1508,7 @@ def api_csv_update():
                         rp["value"] = price_like(rp.get("value", v.get("standardPrice")), rv)
                         v["referencePrice"] = rp
             elif vid is not None and variants:
-                errors.append(f"{i}行目: {mn} にSKU '{vid}' がありません（価格は変更していません）")
+                errors.append(f"{i}行： {mn} 中未找到SKU '{vid}' （未修改价格）")
 
             if json.dumps(item, ensure_ascii=False, sort_keys=True) == before:
                 unchanged += 1
@@ -1516,16 +1516,16 @@ def api_csv_update():
             save_local_edit(mn, item, is_new=bool(row["is_new"]))
             updated += 1
         except Exception as e:
-            errors.append(f"{i}行目: {e}")
+            errors.append(f"{i}行： {e}")
 
-    add_log("", "CSVで既存商品を更新", "ok",
-            f"更新{updated}件 / 変更なし{unchanged}件 / 対象外{len(missing)}件")
-    msg = f"{updated}件を更新しました（ローカル保存・未反映）"
+    add_log("", "通过CSV更新已有商品", "ok",
+            f"更新{updated}件 / 无变化{unchanged}件 / 不在处理范围{len(missing)}件")
+    msg = f"{updated}件已更新（保存到本机，尚未提交）"
     if unchanged:
-        msg += f" / 変更なし{unchanged}件"
+        msg += f" / 无变化{unchanged}件"
     if missing:
-        msg += f" / 未ダウンロードのためスキップ{len(missing)}件"
-    msg += "。内容を確認してから［RMSに反映］を実行してください。"
+        msg += f" / 尚未下载，已跳过{len(missing)}件"
+    msg += "。请核对内容后再执行“提交到RMS”。"
     return jsonify({"ok": True, "updated": updated, "unchanged": unchanged,
                     "missing": len(missing), "errors": errors, "message": msg})
 
@@ -1578,7 +1578,7 @@ def api_reset():
         conn.execute("DELETE FROM logs")
     _mock = None
     return jsonify({"ok": True,
-                    "message": "初期化しました。APIキー・商品データ・ログをすべて削除し、デモモードに戻りました。"})
+                    "message": "初始化完成。本机API密钥、商品数据和日志已删除，已恢复为演示模式。"})
 
 
 @app.route("/api/logs")
@@ -1625,7 +1625,7 @@ def setup_windowed_io():
     except Exception:
         f = open(os.devnull, "w", encoding="utf-8")
     sys.stdout = sys.stderr = f
-    print(f"\n===== 起動 {time.strftime('%Y-%m-%d %H:%M:%S')} v{APP_VERSION} =====")
+    print(f"\n===== 启动 {time.strftime('%Y-%m-%d %H:%M:%S')} v{APP_VERSION} =====")
     return True
 
 
@@ -1635,7 +1635,7 @@ def show_error_dialog(message):
         try:
             import ctypes
             # 0x10 = MB_ICONERROR
-            ctypes.windll.user32.MessageBoxW(None, message, "RMS商品一括編集ツール", 0x10)
+            ctypes.windll.user32.MessageBoxW(None, message, "RMS商品批量编辑工具", 0x10)
             return
         except Exception:
             pass
@@ -1651,10 +1651,10 @@ if __name__ == "__main__":
         init_db()
         threading.Thread(target=scheduler_loop, daemon=True).start()
         port = pick_free_port(int(os.environ.get("PORT", 8930)))
-        print(f"* RMS商品一括編集ツール v{APP_VERSION}: http://localhost:{port} をブラウザで開いてください")
+        print(f"* RMS商品批量编辑工具 v{APP_VERSION}: http://localhost:{port} 请在浏览器中打开")
         if port != int(os.environ.get("PORT", 8930)):
-            print("* 注意: 標準ポートが使用中のため別ポートで起動しました。"
-                  "古いバージョンのツールが起動したままの可能性があります。")
+            print("注意：默认端口已被占用，已使用其他端口启动。"
+                  "可能已有其他工具实例正在运行。")
         try:
             threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{port}")).start()
         except Exception:
@@ -1668,13 +1668,13 @@ if __name__ == "__main__":
             print(tb)
         except Exception:
             pass
-        last = tb.strip().splitlines()[-1] if tb.strip() else "不明なエラー"
-        msg = ("ツールの起動に失敗しました。\n\n"
+        last = tb.strip().splitlines()[-1] if tb.strip() else "未知错误"
+        msg = ("工具启动失败。\n\n"
                f"{last}\n\n"
-               "よくある原因:\n"
-               "・書き込みできない場所（ZIP内・Program Files等）に置いている\n"
-               "・ウイルス対策ソフトにブロックされている\n\n")
+               "常见原因：\n"
+               "· 工具位于不可写位置（例如ZIP压缩包内或Program Files）\n"
+               "· 被安全软件拦截\n\n")
         if windowed:
-            msg += f"詳細ログ:\n{LOG_PATH}"
+            msg += f"详细日志：\n{LOG_PATH}"
         show_error_dialog(msg)
         raise SystemExit(1)

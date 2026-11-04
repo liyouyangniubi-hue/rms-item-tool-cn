@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RMS商品一括編集ツール</title>
+<title>RMS商品批量编辑工具</title>
 <style>
   :root { --main:#bf0000; --bg:#f5f5f5; --border:#ddd; }
   * { box-sizing:border-box; }
-  body { margin:0; font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif; background:var(--bg); font-size:14px; color:#222; }
+  body { margin:0; font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif; background:var(--bg); font-size:14px; color:#222; }
   header { background:var(--main); color:#fff; padding:10px 16px; display:flex; align-items:center; gap:16px; }
   header h1 { font-size:17px; margin:0; }
   header .stats { font-size:12px; opacity:.9; }
@@ -71,446 +71,448 @@
   #fdrop .fnum { padding:8px 10px; }
   #fdrop .fnum input { width:100px; }
   #fdrop .muted { font-size:11px; }
+  /* Keep compact Chinese labels on one line. */
+  #tab-items .editLink.btn, #tab-items .badge, #tab-items td:nth-child(5) { white-space:nowrap; }
 </style>
 </head>
 <body>
 <header>
-  <h1>RMS商品一括編集ツール <span style="font-size:11px;opacity:.8">v{{ version }}</span></h1>
+  <h1>RMS商品批量编辑工具 <span style="font-size:11px;opacity:.8">v{{ version }}</span></h1>
   <span class="stats" id="stats"></span>
   <span class="stats" id="demoBadge" style="margin-left:auto"></span>
-  <button id="btnQuit" title="ツールを終了します"
-    style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.55);border-radius:4px;padding:4px 12px;font-size:12px;cursor:pointer;white-space:nowrap;">終了</button>
+  <button id="btnQuit" title="退出工具"
+    style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.55);border-radius:4px;padding:4px 12px;font-size:12px;cursor:pointer;white-space:nowrap;">退出</button>
 </header>
 <nav>
-  <button data-tab="items" class="active">商品一覧</button>
-  <button data-tab="bulk">一括編集</button>
-  <button data-tab="sale">セール</button>
+  <button data-tab="items" class="active">商品列表</button>
+  <button data-tab="bulk">批量编辑</button>
+  <button data-tab="sale">促销</button>
   <button data-tab="csv">CSV</button>
-  <button data-tab="apply">RMSに反映</button>
-  <button data-tab="jobs">予約</button>
-  <button data-tab="logs">ログ</button>
-  <button data-tab="settings">設定</button>
+  <button data-tab="apply">提交到RMS</button>
+  <button data-tab="jobs">预约</button>
+  <button data-tab="logs">操作日志</button>
+  <button data-tab="settings">设置</button>
 </nav>
 <main>
 
-<!-- 商品一覧 -->
+<!-- 商品列表 -->
 <section class="tab active" id="tab-items">
   <div class="card">
     <div class="toolbar">
-      <button class="btn" id="btnDownload">商品一覧ダウンロード</button>
-      <select id="qField" title="検索対象">
-        <option value="all">全項目</option>
-        <option value="title">商品名</option>
-        <option value="manage_number">商品管理番号</option>
-        <option value="item_number">商品番号</option>
-        <option value="tagline">キャッチコピー</option>
-        <option value="description">説明文（本文検索）</option>
+      <button class="btn" id="btnDownload">下载商品列表</button>
+      <select id="qField" title="搜索范围">
+        <option value="all">全部字段</option>
+        <option value="title">商品名称</option>
+        <option value="manage_number">商品管理编号</option>
+        <option value="item_number">商品编号</option>
+        <option value="tagline">宣传短句</option>
+        <option value="description">商品说明（搜索正文）</option>
       </select>
-      <input type="text" id="searchBox" placeholder="検索キーワード" autocomplete="off">
+      <input type="text" id="searchBox" placeholder="搜索关键词" autocomplete="off">
       <select id="filterOnly">
-        <option value="">すべて</option>
-        <option value="edited">未反映（編集済/新規）のみ</option>
-        <option value="new">新規のみ</option>
-        <option value="hidden">倉庫指定のみ</option>
-        <option value="sale">セール対象のみ</option>
+        <option value="">全部</option>
+        <option value="edited">仅待提交（已编辑/新增）</option>
+        <option value="new">仅新增</option>
+        <option value="hidden">仅已下架</option>
+        <option value="sale">仅促销商品</option>
       </select>
-      <input type="text" id="fGenre" placeholder="ジャンルID（完全一致）" style="width:150px"
+      <input type="text" id="fGenre" placeholder="类目ID（完全匹配）" style="width:150px"
              inputmode="numeric" autocomplete="off">
-      <button class="btn" id="btnSearch">絞り込む</button>
-      <button class="btn ghost" id="btnReload">全解除</button>
+      <button class="btn" id="btnSearch">筛选</button>
+      <button class="btn ghost" id="btnReload">清除筛选</button>
       <span class="muted" id="listInfo"></span>
     </div>
-    <p class="muted" style="margin:4px 0">列見出しの ▼ からExcelのように値を選んで絞り込みできます。フィルター適用中の列は ▼ が赤くなります。</p>
+    <p class="muted" style="margin:4px 0">点击列标题旁的 ▼，可像 Excel 一样勾选数值进行筛选。正在筛选的列，其 ▼ 显示为红色。</p>
     <div id="progress"><div class="bar"><div id="progressFill"></div></div><div class="msg" id="progressMsg"></div></div>
     <table>
       <thead><tr>
         <th class="checkcell"><input type="checkbox" id="checkAll"></th>
-        <th>商品管理番号 <button class="fbtn" data-col="manage_number">▼</button></th>
-        <th>商品名 <button class="fbtn" data-col="title">▼</button></th>
-        <th>キャッチコピー <button class="fbtn" data-col="tagline">▼</button></th>
-        <th>価格 <button class="fbtn" data-col="price">▼</button></th>
-        <th>状態 <button class="fbtn" data-col="status">▼</button></th>
-        <th title="セール対象" style="white-space:nowrap">
-          <input type="checkbox" id="saleCheckAll" title="表示中の商品をまとめてセール対象にする"> 🏷セール</th>
+        <th>商品管理编号 <button class="fbtn" data-col="manage_number">▼</button></th>
+        <th>商品名称 <button class="fbtn" data-col="title">▼</button></th>
+        <th>宣传短句 <button class="fbtn" data-col="tagline">▼</button></th>
+        <th>价格 <button class="fbtn" data-col="price">▼</button></th>
+        <th>状态 <button class="fbtn" data-col="status">▼</button></th>
+        <th title="促销对象" style="white-space:nowrap">
+          <input type="checkbox" id="saleCheckAll" title="将当前页商品全部标记为促销商品"> 🏷促销</th>
         <th></th>
       </tr></thead>
       <tbody id="itemRows"></tbody>
     </table>
     <div class="pager">
-      <button class="btn sub" id="prevPage">前へ</button>
+      <button class="btn sub" id="prevPage">上一页</button>
       <span id="pageInfo"></span>
-      <button class="btn sub" id="nextPage">次へ</button>
-      <button class="btn ghost" id="btnSelectAll" style="margin-left:auto">検索結果をすべて選択</button>
-      <button class="btn ghost" id="btnClearSel">選択解除</button>
-      <span class="muted">選択中: <b id="selCount">0</b>件</span>
+      <button class="btn sub" id="nextPage">下一页</button>
+      <button class="btn ghost" id="btnSelectAll" style="margin-left:auto">选中全部搜索结果</button>
+      <button class="btn ghost" id="btnClearSel">取消选择</button>
+      <span class="muted">已选择： <b id="selCount">0</b>件</span>
     </div>
   </div>
 </section>
 
-<!-- 一括編集 -->
+<!-- 批量编辑 -->
 <section class="tab" id="tab-bulk">
   <div class="card">
-    <h2>一括編集（対象：商品一覧で選択した商品）</h2>
-    <p class="muted">変更はまずローカル（このPC内）に保存されます。[RMSに反映]タブで反映するまで楽天側は変わりません。</p>
-    <label>操作の種類</label>
+    <h2>批量编辑（对象：在商品列表中勾选的商品）</h2>
+    <p class="muted">修改首先保存在本机。执行“提交到RMS”前，不会改变乐天店铺数据。</p>
+    <label>操作类型</label>
     <select id="bulkKind">
-      <option value="replace">文字列置換（商品名/説明文など）</option>
-      <option value="prepend_append">文字列を先頭/末尾に追加</option>
-      <option value="price">販売価格の一括変更</option>
-      <option value="refprice">二重価格（表示価格）の設定 / 解除</option>
-      <option value="hide">倉庫に入れる / 出す</option>
-      <option value="period">販売期間の設定 / 解除</option>
+      <option value="replace">替换文字（商品名称/说明等）</option>
+      <option value="prepend_append">在开头/末尾添加文字</option>
+      <option value="price">批量修改售价</option>
+      <option value="refprice">设置/取消对比价（双重价格）</option>
+      <option value="hide">下架/上架（乐天仓库状态）</option>
+      <option value="period">设置/取消销售期间</option>
     </select>
 
     <div id="bulk-replace" class="bulkPane">
-      <label>対象フィールド（複数選択可）</label>
+      <label>目标字段（可多选）</label>
       <div id="fieldChecks"></div>
       <div class="row">
-        <div><label>検索文字列</label><input type="text" id="repSearch"></div>
-        <div><label>置換後文字列（空で削除）</label><input type="text" id="repReplace"></div>
+        <div><label>查找文字</label><input type="text" id="repSearch"></div>
+        <div><label>替换为（留空即删除匹配文字）</label><input type="text" id="repReplace"></div>
       </div>
     </div>
     <div id="bulk-prepend_append" class="bulkPane" style="display:none">
-      <label>対象フィールド（複数選択可）</label>
+      <label>目标字段（可多选）</label>
       <div id="fieldChecks2"></div>
       <div class="row">
-        <div><label>先頭に追加</label><input type="text" id="paPrepend"></div>
-        <div><label>末尾に追加</label><input type="text" id="paAppend"></div>
+        <div><label>添加到开头</label><input type="text" id="paPrepend"></div>
+        <div><label>添加到末尾</label><input type="text" id="paAppend"></div>
       </div>
     </div>
     <div id="bulk-price" class="bulkPane" style="display:none">
       <div class="row">
-        <div><label>変更方法</label>
+        <div><label>修改方式</label>
           <select id="priceMode">
-            <option value="percent">率で変更（%）例: 10 → 10%値上げ / -5 → 5%値下げ</option>
-            <option value="delta">額で増減（円）例: 100 / -50</option>
-            <option value="fixed">一律この価格にする（円）</option>
+            <option value="percent">按比例调整（%）：10 → 涨价10%；-5 → 降价5%</option>
+            <option value="delta">按金额增减（日元）：例如 100 / -50</option>
+            <option value="fixed">统一设为此售价（日元）</option>
           </select>
         </div>
-        <div><label>値</label><input type="number" id="priceValue" step="any"></div>
+        <div><label>数值</label><input type="number" id="priceValue" step="any"></div>
       </div>
     </div>
     <div id="bulk-refprice" class="bulkPane" style="display:none">
       <div class="row">
-        <div><label>文言</label>
+        <div><label>类型</label>
           <select id="rpType">
-            <option value="1">メーカー希望小売価格</option>
-            <option value="2">当店通常価格</option>
+            <option value="1">厂商建议零售价</option>
+            <option value="2">本店平时售价</option>
           </select>
         </div>
-        <div><label>金額の指定方法</label>
+        <div><label>金额设置方式</label>
           <select id="rpMode">
-            <option value="fixed">一律この金額にする（円）</option>
-            <option value="percent">販売価格の○%増しにする（例: 20 → 販売価格×1.2）</option>
+            <option value="fixed">统一设为此金额（日元）</option>
+            <option value="percent">在售价上增加指定百分比（20 → 售价×1.2）</option>
           </select>
         </div>
-        <div><label>値</label><input type="number" id="rpValue" step="any"></div>
+        <div><label>数值</label><input type="number" id="rpValue" step="any"></div>
       </div>
-      <label style="margin-top:8px"><input type="checkbox" id="rpClear"> 二重価格を解除する（上の設定は無視されます）</label>
+      <label style="margin-top:8px"><input type="checkbox" id="rpClear"> 取消对比价（忽略上方设置）</label>
     </div>
     <div id="bulk-hide" class="bulkPane" style="display:none">
-      <label>倉庫指定</label>
-      <select id="hideValue"><option value="1">倉庫に入れる（非表示）</option><option value="0">倉庫から出す（表示）</option></select>
+      <label>上下架状态</label>
+      <select id="hideValue"><option value="1">放入仓库（下架隐藏）</option><option value="0">移出仓库（上架显示）</option></select>
     </div>
     <div id="bulk-period" class="bulkPane" style="display:none">
       <div class="row">
-        <div><label>販売開始</label><input type="datetime-local" id="periodStart"></div>
-        <div><label>販売終了</label><input type="datetime-local" id="periodEnd"></div>
+        <div><label>销售开始时间（日本时间）</label><input type="datetime-local" id="periodStart"></div>
+        <div><label>销售结束时间（日本时间）</label><input type="datetime-local" id="periodEnd"></div>
       </div>
-      <label><input type="checkbox" id="periodClear"> 販売期間を解除する</label>
+      <label><input type="checkbox" id="periodClear"> 取消销售期间限制</label>
     </div>
-    <p><button class="btn" id="btnBulk">選択した商品に適用（ローカル保存）</button></p>
+    <p><button class="btn" id="btnBulk">应用到所选商品（保存到本机）</button></p>
     <div class="msg" id="bulkMsg"></div>
   </div>
   <div class="card">
-    <h2>商品複製</h2>
+    <h2>复制商品</h2>
     <div class="row">
-      <div><label>複製元 商品管理番号</label><input type="text" id="dupSource" placeholder="一覧で1件選択すると自動入力"></div>
-      <div><label>新しい商品管理番号</label><input type="text" id="dupNew"></div>
-      <div><label>新しい商品名（省略可）</label><input type="text" id="dupTitle"></div>
+      <div><label>来源商品管理编号</label><input type="text" id="dupSource" placeholder="在列表中勾选1件商品后自动填入"></div>
+      <div><label>新商品管理编号</label><input type="text" id="dupNew"></div>
+      <div><label>新商品名称（可选）</label><input type="text" id="dupTitle"></div>
     </div>
-    <p><button class="btn" id="btnDup">複製する（新規・未反映として作成）</button></p>
+    <p><button class="btn" id="btnDup">复制为新商品（尚未提交）</button></p>
     <div class="msg" id="dupMsg"></div>
   </div>
 </section>
 
-<!-- セール -->
+<!-- 促销 -->
 <section class="tab" id="tab-sale">
   <div class="card">
-    <h2>セール対象商品</h2>
-    <p class="muted">商品一覧の「🏷セール」列でチェックした商品がセール対象です。下のボタンで選択中の商品をまとめて追加/解除もできます。</p>
+    <h2>促销商品</h2>
+    <p class="muted">商品列表中勾选“🏷促销”的商品会成为促销对象。也可用下方按钮批量添加或移除所选商品。</p>
     <div class="toolbar">
-      <span>現在のセール対象: <b id="saleCount">-</b>件</span>
-      <button class="btn ghost" id="btnSaleAdd">選択中の商品を対象に追加</button>
-      <button class="btn ghost" id="btnSaleRemove">選択中を対象から外す</button>
-      <button class="btn sub" id="btnSaleClear">対象をすべて解除</button>
-      <button class="btn sub" id="btnSaleShow">対象商品を一覧で表示</button>
+      <span>当前促销对象： <b id="saleCount">-</b>件</span>
+      <button class="btn ghost" id="btnSaleAdd">将所选商品加入促销</button>
+      <button class="btn ghost" id="btnSaleRemove">将所选商品移出促销</button>
+      <button class="btn sub" id="btnSaleClear">清空促销对象</button>
+      <button class="btn sub" id="btnSaleShow">在列表中查看促销商品</button>
     </div>
     <div class="msg" id="saleFlagMsg"></div>
   </div>
   <div class="card">
-    <h2>セール設定（対象商品すべてに適用）</h2>
-    <p class="muted">実行すると ①現在の価格・二重価格・販売期間を<b>履歴に保存</b>（2回分まで） ②セール設定を適用してRMSに反映 ③終了日時に<b>自動で元に戻す予約</b>を作成 まで一括で行います。</p>
+    <h2>促销设置（应用到全部促销商品）</h2>
+    <p class="muted">执行后：①将当前售价、对比价和销售期间<b>保存到历史记录</b>（最多保留2次）；②应用促销设置并提交到RMS；③创建结束时<b>自动恢复原值的预约</b>。以上步骤将一并执行。</p>
     <div class="row">
-      <div><label>セール名（任意）</label><input type="text" id="saleName" placeholder="例：夏の大感謝セール"></div>
+      <div><label>促销名称（可选）</label><input type="text" id="saleName" placeholder="例如：夏季感恩促销"></div>
     </div>
     <div class="row">
-      <div><label>値引き方法</label>
+      <div><label>降价方式</label>
         <select id="salePriceMode">
-          <option value="">価格は変更しない</option>
-          <option value="percent">率で値引き（%）例: -20 → 20%OFF</option>
-          <option value="delta">額で値引き（円）例: -500</option>
-          <option value="fixed">一律この価格にする（円）</option>
+          <option value="">不修改价格</option>
+          <option value="percent">按比例降价（%）：-20 → 降价20%</option>
+          <option value="delta">按金额降价（日元）：例如 -500</option>
+          <option value="fixed">统一设为此售价（日元）</option>
         </select>
       </div>
-      <div><label>値</label><input type="number" id="salePriceValue" step="any" placeholder="例: -20"></div>
+      <div><label>数值</label><input type="number" id="salePriceValue" step="any" placeholder="例如：-20"></div>
     </div>
-    <label style="margin-top:6px"><input type="checkbox" id="saleRef" checked> 元の販売価格を二重価格として表示する</label>
+    <label style="margin-top:6px"><input type="checkbox" id="saleRef" checked> 将促销前售价设为对比价</label>
     <div class="row">
-      <div><label>二重価格の文言</label>
-        <select id="saleRefType"><option value="2">当店通常価格</option><option value="1">メーカー希望小売価格</option></select>
+      <div><label>对比价类型</label>
+        <select id="saleRefType"><option value="2">本店平时售价</option><option value="1">厂商建议零售价</option></select>
       </div>
     </div>
     <div class="row">
-      <div><label>販売期間 開始（任意）</label><input type="datetime-local" id="salePeriodStart"></div>
-      <div><label>販売期間 終了（任意）</label><input type="datetime-local" id="salePeriodEnd"></div>
+      <div><label>销售开始时间（可选，日本时间）</label><input type="datetime-local" id="salePeriodStart"></div>
+      <div><label>销售结束时间（可选，日本时间）</label><input type="datetime-local" id="salePeriodEnd"></div>
     </div>
     <hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
-    <label><input type="checkbox" id="saleAutoRestore" checked> セール終了後に自動で元に戻す（推奨）</label>
+    <label><input type="checkbox" id="saleAutoRestore" checked> 促销结束后自动恢复原值（推荐）</label>
     <div class="row">
-      <div><label>自動復元の日時</label><input type="datetime-local" id="saleRestoreAt">
-        <span class="muted">販売期間の終了を入れると自動で同時刻+5分が入ります</span></div>
-      <div><label>販売期間の戻し方</label>
+      <div><label>自动恢复时间（电脑本地时间）</label><input type="datetime-local" id="saleRestoreAt">
+        <span class="muted">填写销售结束时间后，此处自动填入结束后5分钟</span></div>
+      <div><label>销售期间的恢复方式</label>
         <select id="saleRestorePeriod">
-          <option value="snapshot">セール前の値に戻す</option>
-          <option value="clear">解除する（期間なしにする）</option>
-          <option value="none">変更しない</option>
+          <option value="snapshot">恢复到促销前的值</option>
+          <option value="clear">取消期间限制</option>
+          <option value="none">不修改</option>
         </select>
       </div>
     </div>
-    <p><button class="btn" id="btnSaleStart">セールを開始（履歴保存→RMSに反映→復元予約）</button></p>
+    <p><button class="btn" id="btnSaleStart">开始促销（保存历史→提交到RMS→预约恢复）</button></p>
     <div class="msg" id="saleMsg"></div>
   </div>
   <div class="card">
-    <h2>スーパーSALEサーチ 申請用CSV</h2>
-    <p class="muted">セール対象商品から、RMS［店舗設定→商品管理→イベント商品申請→一括申請］にアップロードするCSVを作成します。
-      掲載条件は<b>二重価格から10%以上の値引き</b>（50%以上で半額サーチ）。下の一覧で割引率を確認してからダウンロードしてください。</p>
+    <h2>超级SALE搜索活动申请CSV</h2>
+    <p class="muted">根据促销商品生成申请CSV，供上传到 RMS 的“店舗設定→商品管理→イベント商品申請→一括申請”。
+      本工具按以下条件判定：<b>比对比价降低10%及以上</b>（降低50%及以上归为半价搜索）。下载前请核对下方折扣率；实际活动资格以 RMS 为准。</p>
     <div style="background:#fff8e6;border:1px solid #e8c56a;border-radius:4px;padding:10px 12px;margin-bottom:10px;font-size:12.5px">
-      <b>⚠ RMSの一括申請は「アップロードした内容で全件上書き」されます。</b><br>
-      すでに申請済みの商品がある場合、この画面のCSVをそのまま上げると<b>申請済み分が消えます</b>。
-      RMSの一括申請画面で［申請用CSVをダウンロード］して現在の申請内容を取得し、下の欄で読み込ませてください（マージして出力します）。
+      <b>⚠ RMS 批量申请会用上传内容覆盖整份申请列表。</b><br>
+      如已有申请商品，直接上传这里生成的CSV可能导致<b>已有申请被移除</b>。
+      请先在 RMS 批量申请页面下载现有申请CSV，再在下方导入；工具会合并后导出。
     </div>
     <div class="toolbar">
-      <span>セール対象: <b id="appTotal">-</b>件</span>
-      <span>／ 半額サーチ可: <b id="appHalf">-</b>件</span>
-      <span>／ 通常サーチ可: <b id="appNormal">-</b>件</span>
-      <span>／ <span style="color:#c00">条件未達: <b id="appNg">-</b>件</span></span>
-      <button class="btn ghost" id="btnAppRefresh">再計算</button>
+      <span>促销对象: <b id="appTotal">-</b>件</span>
+      <span>／ 达到半价搜索门槛： <b id="appHalf">-</b>件</span>
+      <span>／ 达到普通搜索门槛： <b id="appNormal">-</b>件</span>
+      <span>／ <span style="color:#c00">未达到门槛： <b id="appNg">-</b>件</span></span>
+      <button class="btn ghost" id="btnAppRefresh">重新计算</button>
     </div>
     <div class="row">
-      <div><label>CSVに含める商品</label>
+      <div><label>CSV包含的商品</label>
         <select id="appOnly">
-          <option value="eligible">掲載条件を満たす商品のみ（10%以上・推奨）</option>
-          <option value="half">半額サーチ対象のみ（50%以上）</option>
-          <option value="all">セール対象すべて（条件未達も含む）</option>
+          <option value="eligible">仅符合本工具门槛的商品（降价≥10%，推荐）</option>
+          <option value="half">仅半价搜索对象（降价≥50%）</option>
+          <option value="all">全部促销商品（含未达到门槛者）</option>
         </select>
       </div>
-      <div><label>申請済みCSV（RMSでダウンロードしたもの／任意）</label>
+      <div><label>现有申请CSV（从RMS下载，可选）</label>
         <input type="file" id="appExisting" accept=".csv">
-        <span class="muted">読み込むと既存の申請内容を残したままマージします</span>
+        <span class="muted">导入后，保留原申请内容并合并</span>
       </div>
     </div>
     <details style="margin-top:10px">
-      <summary class="muted" style="cursor:pointer">列名がRMSのテンプレートと違う場合はここで変更</summary>
+      <summary class="muted" style="cursor:pointer">列名与RMS模板不一致时，在此修改</summary>
       <div class="row" style="margin-top:6px">
         <div><label>A列</label><input type="text" id="appColA" value="申請するページの商品管理番号"></div>
         <div><label>B列</label><input type="text" id="appColB" value="コピー元商品管理番号"></div>
       </div>
-      <p class="muted">コピーページで申請する場合のみB列にコピー元の商品管理番号が必要です。本ツールは対応関係を持たないため空欄で出力します。</p>
+      <p class="muted">仅使用复制页面申请时，B列需要填写来源商品管理编号。工具不保存复制对应关系，因此默认导出为空。</p>
     </details>
-    <p><button class="btn" id="btnAppCsv">申請用CSVをダウンロード</button></p>
+    <p><button class="btn" id="btnAppCsv">下载活动申请CSV</button></p>
     <div class="msg" id="appMsg"></div>
     <div style="max-height:320px;overflow:auto">
       <table>
-        <thead><tr><th>商品管理番号</th><th>商品名</th><th>二重価格</th><th>販売価格</th><th>割引率</th><th>判定</th></tr></thead>
+        <thead><tr><th>商品管理编号</th><th>商品名称</th><th>对比价</th><th>售价</th><th>降价比例</th><th>判定</th></tr></thead>
         <tbody id="appRows"></tbody>
       </table>
     </div>
   </div>
   <div class="card">
-    <h2>変更履歴（最新2回分）</h2>
-    <p class="muted">セール開始時点の価格・二重価格・販売期間が保存されています。ここからいつでも元の値に戻せます。</p>
+    <h2>变更历史（最近2次）</h2>
+    <p class="muted">这里保存促销开始前的售价、对比价和销售期间，可选择记录进行恢复。</p>
     <table>
-      <thead><tr><th>#</th><th>セール名</th><th>保存日時</th><th>対象</th><th>操作</th></tr></thead>
+      <thead><tr><th>#</th><th>促销名称</th><th>保存时间</th><th>对象</th><th>操作</th></tr></thead>
       <tbody id="saleHistRows"></tbody>
     </table>
-    <p><button class="btn sub" id="btnSaleHistRefresh">更新</button></p>
+    <p><button class="btn sub" id="btnSaleHistRefresh">刷新</button></p>
   </div>
 </section>
 
 <!-- CSV -->
 <section class="tab" id="tab-csv">
   <div class="card">
-    <h2>CSVで新規商品を取り込み</h2>
-    <p class="muted">テンプレートに沿ったCSV（UTF-8またはShift_JIS）で新規商品を一括作成できます。取込後は「未反映（新規）」となり、[RMSに反映]で登録されます。<br>
-    genreId（ジャンルID）は新規登録に必須です。quantity を入れると反映時に初期在庫も設定します。</p>
+    <h2>通过CSV导入新商品</h2>
+    <p class="muted">可按本工具模板制作CSV（UTF-8或Shift_JIS），批量创建新商品。导入后为“待提交（新增）”，执行“提交到RMS”后才正式注册。<br>
+    新商品必须填写 genreId（类目ID）。填写 quantity 后，提交时还会设置初始库存。</p>
     <p>
-      <a href="/api/csv-template"><button class="btn ghost">CSVテンプレートをダウンロード</button></a>
-      <a href="/api/csv-export"><button class="btn ghost">現在の商品一覧をCSVエクスポート</button></a>
+      <a href="/api/csv-template"><button class="btn ghost">下载CSV模板</button></a>
+      <a href="/api/csv-export"><button class="btn ghost">将当前商品列表导出为CSV</button></a>
     </p>
-    <label>CSVファイルを選択</label>
+    <label>选择CSV文件</label>
     <input type="file" id="csvFile" accept=".csv">
-    <p><button class="btn" id="btnCsvImport">取り込む</button></p>
+    <p><button class="btn" id="btnCsvImport">导入</button></p>
     <div class="msg" id="csvMsg"></div>
-    <p class="muted">※すでにダウンロード済みの商品はスキップされます。既存商品の変更は下の［CSVで既存商品を更新］をお使いください。</p>
+    <p class="muted">已下载过的商品会被跳过。修改已有商品请使用下方“通过CSV更新已有商品”。</p>
   </div>
 
   <div class="card">
-    <h2>CSVで既存商品を更新</h2>
-    <p class="muted">［現在の商品一覧をCSVエクスポート］→ Excelで編集 → ここで取り込み、の流れで既存商品をまとめて書き換えます。<br>
-    <b>空欄の列は変更しません。</b>列ごと削除しても構いません（manageNumber と title だけの2列CSVでも動きます）。<br>
-    更新できる項目：商品名／キャッチコピー／商品番号／ジャンルID／説明文3種／倉庫指定／税込区分／販売価格／二重価格<br>
-    <b>画像と在庫数は更新できません</b>（CSVには画像が3枚しか入らないため、4枚目以降を消してしまう事故を防いでいます）。</p>
-    <label>CSVファイルを選択</label>
+    <h2>通过CSV更新已有商品</h2>
+    <p class="muted">先“将当前商品列表导出为CSV”→ 用Excel编辑 → 在这里导入，可批量修改已有商品。<br>
+    <b>空白单元格不会覆盖原值。</b>也可删除不修改的列（仅含 manageNumber 和 title 两列也可）。<br>
+    可更新：商品名称、宣传短句、商品编号、类目ID、3种说明文、上下架状态、含税类型、售价、对比价。<br>
+    <b>不能更新图片和库存数量</b>（避免因CSV仅包含3张图片而误删第4张及后续图片）。</p>
+    <label>选择CSV文件</label>
     <input type="file" id="csvUpdFile" accept=".csv">
-    <p><button class="btn" id="btnCsvUpdate">既存商品を更新する</button></p>
+    <p><button class="btn" id="btnCsvUpdate">更新已有商品</button></p>
     <div class="msg" id="csvUpdMsg"></div>
-    <p class="muted">取り込み後は「編集済」になるだけで、楽天にはまだ送信されません。［RMSに反映］で送信します。</p>
+    <p class="muted">导入后仅标记为“已编辑”，尚未发送到乐天；执行“提交到RMS”才会发送。</p>
   </div>
 </section>
 
 <!-- 反映 -->
 <section class="tab" id="tab-apply">
   <div class="card">
-    <h2>RMSに反映</h2>
-    <p class="muted">ローカルで編集した商品（編集済/新規）をRMSへ送信します。既存商品は変更項目のみPATCH、新規商品はPUTで登録します。</p>
+    <h2>提交到RMS</h2>
+    <p class="muted">将本机已编辑或新增的商品发送到RMS。已有商品仅提交变更字段（PATCH），新商品通过PUT注册。</p>
     <div class="toolbar">
-      <button class="btn" id="btnApplyAll">未反映をすべて反映</button>
-      <button class="btn sub" id="btnApplyRefresh">一覧を更新</button>
+      <button class="btn" id="btnApplyAll">提交全部待提交修改</button>
+      <button class="btn sub" id="btnApplyRefresh">刷新列表</button>
       <span class="muted" id="applyInfo"></span>
     </div>
     <div id="applyProgress" style="display:none"><div class="bar" style="height:14px;background:#eee;border-radius:7px;overflow:hidden"><div id="applyFill" style="height:100%;background:var(--main);width:0%"></div></div><div class="msg" id="applyMsg"></div></div>
     <table>
-      <thead><tr><th>商品管理番号</th><th>商品名</th><th>状態</th></tr></thead>
+      <thead><tr><th>商品管理编号</th><th>商品名称</th><th>状态</th></tr></thead>
       <tbody id="applyRows"></tbody>
     </table>
     <div class="msg err" id="applyErrors" style="white-space:pre-wrap"></div>
   </div>
 </section>
 
-<!-- 予約 -->
+<!-- 预约 -->
 <section class="tab" id="tab-jobs">
   <div class="card">
-    <h2>復元予約を作成（セール終了後の自動戻し）</h2>
+    <h2>创建恢复预约（促销结束后自动恢复）</h2>
     <p class="muted">
-      <b>使い方：</b>①セール設定を行う<u>前に</u>、商品一覧で対象商品にチェック → ここで予約を作成（この時点の価格・販売期間が保存されます）
-      → ②一括編集でセール価格などを設定して［RMSに反映］ → ③指定日時に保存しておいた値へ自動復元します。<br>
-      実行時はRMSから最新データを取得したうえで、変更が必要な項目だけを送信します。結果は［ログ］に記録されます。<br>
-      <b>※自動実行にはこのツールを起動したままにしておく必要があります。</b>停止中に時刻を過ぎた予約は自動実行せず「要確認」になります。
+      <b>使用方法：</b>①设置促销<u>之前</u>，先在商品列表勾选目标商品 → 在这里创建预约（保存此时的价格和销售期间）
+      → ②在批量编辑中设置促销价等并提交到RMS → ③在指定时间自动恢复到保存的值。<br>
+      执行时先从RMS获取最新数据，只提交需要修改的字段。结果记录在“操作日志”中。<br>
+      <b>自动恢复需要电脑和工具保持运行。</b>当前代码会在工具重新启动后检查已到期预约，并可能自动补执行；请在停机前核对或取消预约。
     </p>
     <div class="row">
-      <div><label>予約名（任意）</label><input type="text" id="jobName" placeholder="例：8月セール戻し"></div>
-      <div><label>実行日時</label><input type="datetime-local" id="jobRunAt"></div>
+      <div><label>预约名称（可选）</label><input type="text" id="jobName" placeholder="例如：8月促销恢复"></div>
+      <div><label>执行时间（电脑本地时间）</label><input type="datetime-local" id="jobRunAt"></div>
     </div>
-    <label style="margin-top:8px"><input type="checkbox" id="jobPrice" checked> 販売価格を予約作成時の値に戻す</label>
-    <label>販売期間の扱い</label>
+    <label style="margin-top:8px"><input type="checkbox" id="jobPrice" checked> 将售价恢复到创建预约时的值</label>
+    <label>销售期间处理方式</label>
     <select id="jobPeriod">
-      <option value="none">変更しない</option>
-      <option value="snapshot">予約作成時の値に戻す</option>
-      <option value="clear">解除する（期間指定なしにする）</option>
+      <option value="none">不修改</option>
+      <option value="snapshot">恢复到创建预约时的值</option>
+      <option value="clear">取消期间限制</option>
     </select>
-    <p><button class="btn" id="btnJobCreate">予約を作成（選択中: <span id="jobSelCount">0</span>件）</button></p>
+    <p><button class="btn" id="btnJobCreate">创建预约（已选择： <span id="jobSelCount">0</span>件）</button></p>
     <div class="msg" id="jobMsg"></div>
   </div>
   <div class="card">
-    <h2>予約一覧</h2>
-    <p><button class="btn sub" id="btnJobsRefresh">更新</button></p>
+    <h2>预约列表</h2>
+    <p><button class="btn sub" id="btnJobsRefresh">刷新</button></p>
     <table>
-      <thead><tr><th>#</th><th>予約名</th><th>実行日時</th><th>対象</th><th>内容</th><th>状態</th><th>操作</th></tr></thead>
+      <thead><tr><th>#</th><th>预约名称</th><th>执行时间（电脑本地时间）</th><th>对象</th><th>内容</th><th>状态</th><th>操作</th></tr></thead>
       <tbody id="jobRows"></tbody>
     </table>
-    <p class="muted">「要確認」＝実行時刻にツールが停止していた予約です。内容を確認のうえ［今すぐ実行］してください。</p>
+    <p class="muted">如出现“待确认”，请核对内容后再点击“立即执行”。当前版本也可能在重启后自动补执行已到期预约。</p>
   </div>
 </section>
 
-<!-- ログ -->
+<!-- 操作日志 -->
 <section class="tab" id="tab-logs">
   <div class="card">
-    <h2>処理ログ（直近300件）</h2>
-    <p><button class="btn sub" id="btnLogRefresh">更新</button></p>
+    <h2>操作日志（最近300条）</h2>
+    <p><button class="btn sub" id="btnLogRefresh">刷新</button></p>
     <table>
-      <thead><tr><th>日時</th><th>商品管理番号</th><th>処理</th><th>結果</th><th>詳細</th></tr></thead>
+      <thead><tr><th>时间</th><th>商品管理编号</th><th>操作</th><th>结果</th><th>详情</th></tr></thead>
       <tbody id="logRows"></tbody>
     </table>
   </div>
 </section>
 
-<!-- 設定 -->
+<!-- 设置 -->
 <section class="tab" id="tab-settings">
   <div class="card">
-    <h2>アカウント設定（RMS WEB APIサービス）</h2>
-    <p class="muted">RMS［店舗様向け情報・サービス］→［WEB APIサービス］でアプリ登録し、serviceSecret とライセンスキーを貼り付けてください。Item API・Inventory API（2.0系）を［利用中］にする必要があります。</p>
+    <h2>账号设置（RMS WEB API服务）</h2>
+    <p class="muted">在RMS“店舗様向け情報・サービス→WEB APIサービス”中注册应用，再在本机填写 serviceSecret 和 licenseKey。需要启用 Item API、Inventory API（2.0）。</p>
     <div class="row">
       <div><label>serviceSecret</label><input type="password" id="cfgSecret" placeholder="SP3xxxxxxxx"></div>
       <div><label>licenseKey</label><input type="password" id="cfgLicense" placeholder="SL3xxxxxxxx"></div>
-      <div><label>API送信間隔（ミリ秒）</label><input type="number" id="cfgWait" value="700" min="200"></div>
+      <div><label>API请求间隔（毫秒）</label><input type="number" id="cfgWait" value="700" min="200"></div>
     </div>
-    <label style="margin-top:10px"><input type="checkbox" id="cfgDemo"> デモモード（APIに接続せずサンプルデータで動作確認）</label>
+    <label style="margin-top:10px"><input type="checkbox" id="cfgDemo"> 演示模式（不连接API，使用模拟数据试用）</label>
     <p>
       <button class="btn" id="btnSaveCfg">保存</button>
-      <button class="btn ghost" id="btnTestCfg">接続テスト</button>
+      <button class="btn ghost" id="btnTestCfg">连接测试</button>
     </p>
     <div class="msg" id="cfgMsg"></div>
   </div>
   <div class="card" style="border-color:#c00">
-    <h2 style="border-left-color:#c00">配布用リセット（初期化）</h2>
-    <p class="muted">このツールを他の人に渡す前に実行してください。APIキー（serviceSecret／ライセンスキー）・ダウンロード済み商品データ・処理ログをすべて削除し、デモモードの初期状態に戻します。<b>楽天RMS側のデータには一切影響しません。</b></p>
-    <p><button class="btn" id="btnReset" style="background:#c00">初期化する（APIキーとデータを全削除）</button></p>
+    <h2 style="border-left-color:#c00">分享前重置（初始化）</h2>
+    <p class="muted">分享给他人前可执行此操作。它会删除本机API密钥、已下载商品和操作日志，并恢复到演示初始状态。<b>不会改变乐天RMS中的数据。</b></p>
+    <p><button class="btn" id="btnReset" style="background:#c00">初始化（删除本机全部密钥和数据）</button></p>
     <div class="msg" id="resetMsg"></div>
   </div>
 </section>
 
 </main>
 
-<!-- 編集モーダル -->
+<!-- 编辑モーダル -->
 <dialog id="editDialog">
-  <div class="dhead"><b id="editTitle">商品編集</b><span style="cursor:pointer" onclick="document.getElementById('editDialog').close()">✕</span></div>
+  <div class="dhead"><b id="editTitle">编辑商品</b><span style="cursor:pointer" onclick="document.getElementById('editDialog').close()">✕</span></div>
   <div class="dbody">
     <div class="row">
-      <div><label>商品管理番号</label><input type="text" id="eMn" disabled></div>
-      <div><label>商品番号 (itemNumber)</label><input type="text" id="eItemNumber"></div>
-      <div><label>ジャンルID</label><input type="text" id="eGenre"></div>
+      <div><label>商品管理编号</label><input type="text" id="eMn" disabled></div>
+      <div><label>商品编号 (itemNumber)</label><input type="text" id="eItemNumber"></div>
+      <div><label>类目ID</label><input type="text" id="eGenre"></div>
     </div>
-    <label>商品名</label><input type="text" id="eTitle">
-    <label>キャッチコピー</label><input type="text" id="eTagline">
+    <label>商品名称</label><input type="text" id="eTitle">
+    <label>宣传短句</label><input type="text" id="eTagline">
     <div class="row">
-      <div><label>PC用商品説明文</label><textarea id="eDescPc"></textarea></div>
-      <div><label>スマホ用商品説明文</label><textarea id="eDescSp"></textarea></div>
+      <div><label>电脑端商品说明</label><textarea id="eDescPc"></textarea></div>
+      <div><label>手机端商品说明</label><textarea id="eDescSp"></textarea></div>
     </div>
-    <label>PC用販売説明文</label><textarea id="eSalesDesc"></textarea>
+    <label>电脑端销售说明</label><textarea id="eSalesDesc"></textarea>
     <div class="row">
-      <div><label>倉庫指定</label><select id="eHide"><option value="0">表示（通常）</option><option value="1">倉庫（非表示）</option></select></div>
-      <div><label>税込/税別</label><select id="eTax"><option value="1">税込</option><option value="0">税別</option></select></div>
+      <div><label>上下架状态</label><select id="eHide"><option value="0">显示（正常上架）</option><option value="1">仓库（下架隐藏）</option></select></div>
+      <div><label>含税/未税</label><select id="eTax"><option value="1">含税</option><option value="0">未税</option></select></div>
     </div>
     <div class="row">
-      <div><label>販売期間 開始（空欄で指定なし）</label><input type="datetime-local" id="ePeriodStart"></div>
-      <div><label>販売期間 終了（空欄で指定なし）</label><input type="datetime-local" id="ePeriodEnd"></div>
+      <div><label>销售开始时间（留空表示不限制，日本时间）</label><input type="datetime-local" id="ePeriodStart"></div>
+      <div><label>销售结束时间（留空表示不限制，日本时间）</label><input type="datetime-local" id="ePeriodEnd"></div>
     </div>
-    <label>SKU（バリエーション）・販売価格・二重価格</label>
+    <label>SKU（规格）、售价与对比价</label>
     <table class="variants-table"><thead><tr>
-      <th>SKU管理番号</th><th>販売価格(円)</th><th>二重価格の文言</th><th>二重価格 金額(円)</th><th>SKU非表示</th>
+      <th>SKU管理编号</th><th>售价(日元)</th><th>对比价类型</th><th>对比价金额（日元）</th><th>隐藏SKU</th>
     </tr></thead><tbody id="eVariants"></tbody></table>
-    <p class="muted">二重価格：文言と金額の両方を設定すると表示されます。金額を空欄にすると二重価格は解除されます。</p>
-    <details style="margin-top:10px"><summary class="muted">上級者向け：商品データ全体（JSON）を直接編集</summary>
+    <p class="muted">对比价：须同时设置类型和金额才会显示；金额留空将取消对比价。</p>
+    <details style="margin-top:10px"><summary class="muted">高级操作：直接编辑完整商品数据（JSON）</summary>
       <textarea id="eJson" style="min-height:200px;font-family:monospace"></textarea>
-      <p class="muted">JSONを直接編集した場合は上のフォームより優先されます（[JSONを反映]を押した時のみ）。</p>
-      <button class="btn sub" id="btnApplyJson" type="button">JSONを反映</button>
+      <p class="muted">原工具提供JSON编辑入口，需点击“应用JSON”。保存前仍请核对上方表单；表单字段也会参与保存。</p>
+      <button class="btn sub" id="btnApplyJson" type="button">应用JSON</button>
     </details>
   </div>
   <div class="dfoot">
     <div class="msg" id="editMsg" style="margin-right:auto"></div>
-    <button class="btn sub" id="btnDiscard" type="button">ローカル編集を破棄</button>
-    <button class="btn" id="btnSaveItem" type="button">保存（ローカル）</button>
+    <button class="btn sub" id="btnDiscard" type="button">放弃本机修改</button>
+    <button class="btn" id="btnSaveItem" type="button">保存到本机</button>
   </div>
 </dialog>
 
@@ -540,12 +542,12 @@ document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   if (b.dataset.tab==="sale") { loadSale(); loadSaleApplication(); }
 });
 
-// ---- 状態 ----
+// ---- 状态 ----
 let page = 1, selected = new Set();
 const FIELD_DEFS = [
-  ["title","商品名"],["tagline","キャッチコピー"],
-  ["productDescription.pc","PC用商品説明文"],["productDescription.sp","スマホ用商品説明文"],
-  ["salesDescription","PC用販売説明文"],
+  ["title","商品名称"],["tagline","宣传短句"],
+  ["productDescription.pc","电脑端商品说明"],["productDescription.sp","手机端商品说明"],
+  ["salesDescription","电脑端销售说明"],
 ];
 for (const target of ["fieldChecks","fieldChecks2"]) {
   $(target).innerHTML = FIELD_DEFS.map(([v,l]) =>
@@ -555,12 +557,12 @@ for (const target of ["fieldChecks","fieldChecks2"]) {
 async function loadStats(){
   try{
     const s = await api("/api/stats");
-    $("stats").textContent = `登録 ${s.total}件 ／ 未反映 ${s.pending}件（うち新規 ${s.new}件）`;
+    $("stats").textContent = `商品 ${s.total}件 ／ 待提交 ${s.pending}件（其中新增 ${s.new}件）`;
   }catch(e){}
 }
 
-// ---- 商品一覧 ----
-// ---- Excel風 列フィルターの状態 ----
+// ---- 商品列表 ----
+// ---- Excel風 列フィルターの状态 ----
 const colFilters = {
   manage_number:{}, title:{}, tagline:{},          // {mode,vals,text}
   price:{},                                         // {min,max}
@@ -604,16 +606,16 @@ async function loadItems(){
       <td>${it.min_price==null ? "" :
             it.min_price===it.max_price
               ? `<input type="number" class="listPrice" data-mn="${esc(it.manage_number)}" value="${it.min_price}"
-                   style="width:90px;padding:3px 5px" title="Enterまたはフォーカスを外すと保存されます">円`
-              : `${Number(it.min_price).toLocaleString()}〜${Number(it.max_price).toLocaleString()}円
-                 <span class="muted" title="SKUごとに価格が異なるため一覧では変更できません">(SKU別)</span>`}</td>
-      <td>${it.is_new?'<span class="badge new">新規</span>':""}${it.edited&&!it.is_new?'<span class="badge edited">編集済</span>':""}${it.hide_item?'<span class="badge hidden">倉庫</span>':""}</td>
-      <td class="checkcell"><input type="checkbox" class="saleCheck" value="${esc(it.manage_number)}" ${it.sale_flag?"checked":""} title="セール対象"></td>
-      <td><button class="btn ghost editLink" data-mn="${esc(it.manage_number)}" style="padding:2px 10px">編集</button></td>
+                   style="width:90px;padding:3px 5px" title="按Enter或移开焦点即保存到本机">日元`
+              : `${Number(it.min_price).toLocaleString()}〜${Number(it.max_price).toLocaleString()}日元
+                 <span class="muted" title="各SKU价格不同，请进入编辑窗口分别修改">(分SKU)</span>`}</td>
+      <td>${it.is_new?'<span class="badge new">新增</span>':""}${it.edited&&!it.is_new?'<span class="badge edited">已编辑</span>':""}${it.hide_item?'<span class="badge hidden">仓库/下架</span>':""}</td>
+      <td class="checkcell"><input type="checkbox" class="saleCheck" value="${esc(it.manage_number)}" ${it.sale_flag?"checked":""} title="促销对象"></td>
+      <td><button class="btn ghost editLink" data-mn="${esc(it.manage_number)}" style="padding:2px 10px">编辑</button></td>
     </tr>`).join("");
   const pages = Math.max(Math.ceil(d.total/d.per),1);
-  $("pageInfo").textContent = `${d.page} / ${pages} ページ（該当${d.total}件）`;
-  $("listInfo").textContent = d.total===0 ? "該当する商品がありません。条件を見直すか[商品一覧ダウンロード]を実行してください。" : "";
+  $("pageInfo").textContent = `第 ${d.page} / ${pages} 页（共${d.total}件）`;
+  $("listInfo").textContent = d.total===0 ? "没有匹配商品。请调整筛选条件，或先点击“下载商品列表”。" : "";
   document.querySelectorAll(".rowCheck").forEach(c => c.onchange = () => {
     c.checked ? selected.add(c.value) : selected.delete(c.value);
     updateSel();
@@ -623,20 +625,20 @@ async function loadItems(){
     try{ await api("/api/sale/flag",{method:"POST", body:{targets:[c.value], value:c.checked}}); syncSaleCheckAll(); }
     catch(e){ alert(e.message); c.checked = !c.checked; }
   });
-  // 販売価格のインライン編集（全SKU同額の商品のみ）
+  // 售价のインライン编辑（全SKU同額の商品のみ）
   document.querySelectorAll(".listPrice").forEach(inp => {
-    let current = inp.value;   // 保存に成功するたび更新する（差し戻し先）
+    let current = inp.value;   // 保存に成功するたび刷新する（差し戻し先）
     inp.onkeydown = e => { if (e.key === "Enter") inp.blur(); };
     inp.onchange = async () => {
       if (inp.value === current) return;
       if (inp.value === "" || Number(inp.value) < 1) {
-        alert("価格は1円以上で入力してください"); inp.value = current; return;
+        alert("价格必须为1日元及以上"); inp.value = current; return;
       }
       inp.disabled = true;
       try{
         const r = await api(`/api/items/${encodeURIComponent(inp.dataset.mn)}/price`,
                             {method:"POST", body:{price:Number(inp.value)}});
-        inp.value = r.price;     // サーバ側の丸め結果に合わせる
+        inp.value = r.price;     // サーバ側の丸め结果に合わせる
         current = String(r.price);
         inp.disabled = false;
         inp.style.background = "#e7f7ec";
@@ -651,7 +653,7 @@ async function loadItems(){
   loadStats();
 }
 
-// セール列のヘッダーチェックボックス（表示中の商品をまとめて切替）
+// 促销列のヘッダーチェックボックス（表示中の商品をまとめて切替）
 function syncSaleCheckAll(){
   const boxes = [...document.querySelectorAll(".saleCheck")];
   const all = $("saleCheckAll");
@@ -712,41 +714,41 @@ async function openFdrop(btn){
   const col = fdropCol, f = colFilters[col];
   if (col === "price"){
     fdrop.innerHTML = `<div class="fnum">
-      <label>販売価格（円）</label>
-      <input type="number" id="fdMin" placeholder="下限" value="${f.min||""}"> 〜
-      <input type="number" id="fdMax" placeholder="上限" value="${f.max||""}">
+      <label>售价（日元）</label>
+      <input type="number" id="fdMin" placeholder="最低值" value="${f.min||""}"> 〜
+      <input type="number" id="fdMax" placeholder="最高值" value="${f.max||""}">
       </div>
-      <div class="ffoot"><button class="btn sub" id="fdClear">クリア</button><button class="btn" id="fdApply">適用</button></div>`;
+      <div class="ffoot"><button class="btn sub" id="fdClear">清除</button><button class="btn" id="fdApply">应用</button></div>`;
     $("fdApply").onclick = ()=>{ colFilters.price={min:$("fdMin").value,max:$("fdMax").value}; applyFdrop(); };
     $("fdClear").onclick = ()=>{ colFilters.price={}; applyFdrop(); };
     return;
   }
   if (col === "status"){
     fdrop.innerHTML = `<div class="fnum">
-      <label>表示状態</label>
+      <label>显示状态</label>
       <select id="fdHide" style="width:100%">
-        <option value="">すべて</option><option value="0">表示中のみ</option><option value="1">倉庫のみ</option>
+        <option value="">全部</option><option value="0">仅显示中的商品</option><option value="1">仅仓库/下架商品</option>
       </select>
-      <label style="margin-top:8px">編集状態</label>
+      <label style="margin-top:8px">编辑状态</label>
       <select id="fdOnly" style="width:100%">
-        <option value="">すべて</option><option value="edited">未反映（編集済/新規）のみ</option>
-        <option value="new">新規のみ</option><option value="clean">未編集のみ</option>
+        <option value="">全部</option><option value="edited">仅待提交（已编辑/新增）</option>
+        <option value="new">仅新增</option><option value="clean">仅未编辑</option>
       </select></div>
-      <div class="ffoot"><button class="btn sub" id="fdClear">クリア</button><button class="btn" id="fdApply">適用</button></div>`;
+      <div class="ffoot"><button class="btn sub" id="fdClear">清除</button><button class="btn" id="fdApply">应用</button></div>`;
     $("fdHide").value = f.hide||""; $("fdOnly").value = f.only||"";
     $("fdApply").onclick = ()=>{ colFilters.status={hide:$("fdHide").value, only:$("fdOnly").value}; applyFdrop(); };
     $("fdClear").onclick = ()=>{ colFilters.status={}; applyFdrop(); };
     return;
   }
-  // 値リスト列（Excel風チェックリスト）
+  // 数值リスト列（Excel風チェックリスト）
   fdrop.innerHTML = `<div class="fhead">
-      <input type="text" id="fdSearch" placeholder="リスト内を検索">
-      <label style="margin:6px 0 4px"><input type="checkbox" id="fdAll" checked> (すべて選択)</label>
+      <input type="text" id="fdSearch" placeholder="在选项中搜索">
+      <label style="margin:6px 0 4px"><input type="checkbox" id="fdAll" checked> (全选)</label>
     </div>
-    <div class="flist" id="fdList">読み込み中...</div>
-    <div class="fhead"><label>テキスト絞り込み（部分一致）</label>
+    <div class="flist" id="fdList">加载中...</div>
+    <div class="fhead"><label>文字筛选（包含匹配）</label>
       <input type="text" id="fdText" value="${(f.text||"").replace(/"/g,"&quot;")}"></div>
-    <div class="ffoot"><button class="btn sub" id="fdClear">クリア</button><button class="btn" id="fdApply">適用</button></div>`;
+    <div class="ffoot"><button class="btn sub" id="fdClear">清除</button><button class="btn" id="fdApply">应用</button></div>`;
   const d = await api(`/api/facets?column=${col}&${filterQuery()}`);
   const excluded = new Set(f.mode==="notin" ? (f.vals||[]) : []);
   const included = f.mode==="in" && f.vals && f.vals.length ? new Set(f.vals) : null;
@@ -758,7 +760,7 @@ async function openFdrop(btn){
       .filter(x => !kw || (x.v||"").toLowerCase().includes(kw))
       .map(x => `<label><input type="checkbox" class="fv" data-id="${x.id}" ${x.checked?"checked":""}>
         <span>${x.v===""?"(空白)":esc(x.v)}</span><span class="muted">(${x.c})</span></label>`).join("")
-      || '<span class="muted">該当なし</span>';
+      || '<span class="muted">无匹配项</span>';
     document.querySelectorAll(".fv").forEach(c => c.onchange = ()=>{
       items.find(x=>x.id===c.dataset.id).checked = c.checked;
       $("fdAll").checked = items.every(x=>x.checked);
@@ -766,14 +768,14 @@ async function openFdrop(btn){
   }
   renderList();
   if (d.truncated) $("fdList").insertAdjacentHTML("beforebegin",
-    '<div class="muted" style="padding:2px 10px">値が多いため先頭500件のみ表示。テキスト絞り込みをご利用ください。</div>');
+    '<div class="muted" style="padding:2px 10px">选项较多，仅显示前500项。请使用文字筛选。</div>');
   $("fdSearch").oninput = renderList;
   $("fdAll").onchange = ()=>{ items.forEach(x=>x.checked=$("fdAll").checked); renderList(); };
   $("fdApply").onclick = ()=>{
     const on = items.filter(x=>x.checked), off = items.filter(x=>!x.checked);
     let nf = {};
-    if (off.length===0) nf = {};                                  // 全選択=フィルターなし
-    else if (on.length===0) nf = {mode:"in", vals:["__none__"]};  // 全解除=0件
+    if (off.length===0) nf = {};                                  // 全選択=フィルター无
+    else if (on.length===0) nf = {mode:"in", vals:["__none__"]};  // 清除筛选=0件
     else if (on.length<=off.length) nf = {mode:"in", vals:on.map(x=>x.v)};
     else nf = {mode:"notin", vals:off.map(x=>x.v)};
     nf.text = $("fdText").value.trim();
@@ -791,16 +793,16 @@ $("btnSelectAll").onclick = async ()=>{
   const d = await api(`/api/item-ids?${filterQuery()}`);
   d.ids.forEach(id=>selected.add(id));
   updateSel(); loadItems();
-  alert(`検索結果 ${d.ids.length}件 を選択しました（全ページ対象）。\n[一括編集]タブから操作できます。`);
+  alert(`已选中全部页面的 ${d.ids.length} 件搜索结果。\n请进入“批量编辑”操作。`);
 };
 $("btnClearSel").onclick = ()=>{ selected.clear(); updateSel(); loadItems(); };
 
 // ---- ダウンロード ----
 $("btnDownload").onclick = async () => {
-  if(!confirm("RMSから商品一覧をダウンロードします。ローカルの未反映編集は上書きされます。よろしいですか？")) return;
+  if(!confirm("将下载商品列表（演示模式使用模拟数据）。本机尚未提交的编辑会被覆盖，是否继续？")) return;
   try{
     await api("/api/download",{method:"POST"});
-    // ページを戻さないと、2ページ目以降を開いた状態では現在ページ＞総ページ数となり
+    // ページを戻さないと、2ページ目以降を開いた状态では現在ページ＞総ページ数となり
     // ダウンロード成功なのに「該当0件」に見えてしまう
     watchJob(()=>{ page=1; loadItems(); });
   }catch(e){ alert(e.message); }
@@ -811,12 +813,12 @@ function watchJob(onDone){
     const j = await api("/api/job");
     const pct = j.total ? Math.round(j.done/j.total*100) : (j.finished?100:30);
     $("progressFill").style.width = pct+"%";
-    $("progressMsg").textContent = j.message + (j.errors.length?` ／ エラー: ${j.errors[j.errors.length-1]}`:"");
+    $("progressMsg").textContent = j.message + (j.errors.length?` ／ 错误： ${j.errors[j.errors.length-1]}`:"");
     if (j.finished){ clearInterval(timer); onDone && onDone(); }
   }, 700);
 }
 
-// ---- 編集モーダル ----
+// ---- 编辑モーダル ----
 let editing = null;
 function isoToLocal(iso){ // "2026-07-11T15:00:00+09:00" -> "2026-07-11T15:00"
   if(!iso) return "";
@@ -847,20 +849,20 @@ async function openEdit(mn){
   $("eVariants").innerHTML = Object.entries(vs).map(([vid,v])=>{
     const rp = v.referencePrice||{};
     const rpType = rp.type!=null ? String(rp.type) : "1";
-    const extra = (rpType!=="1"&&rpType!=="2") ? `<option value="${esc(rpType)}" selected>その他(${esc(rpType)})</option>` : "";
+    const extra = (rpType!=="1"&&rpType!=="2") ? `<option value="${esc(rpType)}" selected>其他(${esc(rpType)})</option>` : "";
     return `
     <tr><td><code>${esc(vid)}</code></td>
     <td><input type="number" class="vPrice" data-vid="${esc(vid)}" value="${v.standardPrice??""}"></td>
     <td><select class="vRpType" data-vid="${esc(vid)}">
-      <option value="1" ${rpType==="1"?"selected":""}>メーカー希望小売価格</option>
-      <option value="2" ${rpType==="2"?"selected":""}>当店通常価格</option>${extra}
+      <option value="1" ${rpType==="1"?"selected":""}>厂商建议零售价</option>
+      <option value="2" ${rpType==="2"?"selected":""}>本店平时售价</option>${extra}
     </select></td>
-    <td><input type="number" class="vRpValue" data-vid="${esc(vid)}" value="${rp.value??""}" placeholder="空欄=解除"></td>
+    <td><input type="number" class="vRpValue" data-vid="${esc(vid)}" value="${rp.value??""}" placeholder="留空=取消"></td>
     <td style="text-align:center"><input type="checkbox" class="vHidden" data-vid="${esc(vid)}" ${v.hidden?"checked":""}></td></tr>`;
   }).join("");
   $("eJson").value = JSON.stringify(it, null, 2);
-  $("editMsg").textContent = d.edited ? "ローカル編集あり（未反映）" : "";
-  $("editTitle").textContent = (editing.isNew?"【新規】":"") + "商品編集: " + mn;
+  $("editMsg").textContent = d.edited ? "存在本机修改（尚未提交）" : "";
+  $("editTitle").textContent = (editing.isNew?"【新增】":"") + "编辑商品: " + mn;
   $("editDialog").showModal();
 }
 function collectForm(){
@@ -904,8 +906,8 @@ function collectForm(){
   return it;
 }
 $("btnApplyJson").onclick = ()=>{
-  try{ editing.item = JSON.parse($("eJson").value); alert("JSONをフォームに反映しました。[保存（ローカル）]で確定します。"); }
-  catch(e){ alert("JSONの形式が不正です: "+e.message); }
+  try{ editing.item = JSON.parse($("eJson").value); alert("已读取JSON。请核对表单后点击“保存到本机”确认。"); }
+  catch(e){ alert("JSON格式错误： "+e.message); }
 };
 $("btnSaveItem").onclick = async ()=>{
   try{
@@ -915,12 +917,12 @@ $("btnSaveItem").onclick = async ()=>{
   }catch(e){ $("editMsg").textContent = e.message; }
 };
 $("btnDiscard").onclick = async ()=>{
-  if(!confirm("この商品のローカル編集（新規の場合は商品ごと）を破棄します。よろしいですか？")) return;
+  if(!confirm("将放弃此商品的本机修改（新增商品会从本机移除）。是否继续？")) return;
   await api(`/api/items/${encodeURIComponent(editing.mn)}`, {method:"DELETE"});
   $("editDialog").close(); loadItems();
 };
 
-// ---- 一括編集 ----
+// ---- 批量编辑 ----
 $("bulkKind").onchange = ()=>{
   document.querySelectorAll(".bulkPane").forEach(p=>p.style.display="none");
   $("bulk-"+$("bulkKind").value).style.display="block";
@@ -931,17 +933,17 @@ $("btnBulk").onclick = async ()=>{
   if (kind==="replace"){
     op.fields = [...document.querySelectorAll(".fieldChecks:checked")].map(c=>c.value);
     op.search = $("repSearch").value; op.replace = $("repReplace").value;
-    if(!op.search){ $("bulkMsg").textContent="検索文字列を入力してください"; return; }
+    if(!op.search){ $("bulkMsg").textContent="请输入查找文字"; return; }
   } else if (kind==="prepend_append"){
     op.fields = [...document.querySelectorAll(".fieldChecks2:checked")].map(c=>c.value);
     op.prepend = $("paPrepend").value; op.append = $("paAppend").value;
   } else if (kind==="price"){
     op.mode = $("priceMode").value; op.value = $("priceValue").value;
-    if(op.value===""){ $("bulkMsg").textContent="値を入力してください"; return; }
+    if(op.value===""){ $("bulkMsg").textContent="请输入数值"; return; }
   } else if (kind==="refprice"){
     op.clear = $("rpClear").checked;
     op.type = $("rpType").value; op.mode = $("rpMode").value; op.value = $("rpValue").value;
-    if(!op.clear && op.value===""){ $("bulkMsg").className="msg err"; $("bulkMsg").textContent="値を入力してください"; return; }
+    if(!op.clear && op.value===""){ $("bulkMsg").className="msg err"; $("bulkMsg").textContent="请输入数值"; return; }
   } else if (kind==="hide"){
     op.value = $("hideValue").value==="1";
   } else if (kind==="period"){
@@ -949,8 +951,8 @@ $("btnBulk").onclick = async ()=>{
     op.start = $("periodStart").value ? $("periodStart").value+":00+09:00" : "";
     op.end = $("periodEnd").value ? $("periodEnd").value+":59+09:00" : "";
   }
-  if (selected.size===0){ $("bulkMsg").className="msg err"; $("bulkMsg").textContent="商品一覧タブで対象商品にチェックを入れてください"; return; }
-  if (!confirm(`選択中の${selected.size}件に適用します。よろしいですか？`)) return;
+  if (selected.size===0){ $("bulkMsg").className="msg err"; $("bulkMsg").textContent="请先在“商品列表”中勾选目标商品"; return; }
+  if (!confirm(`将应用到所选的 ${selected.size} 件商品，是否继续？`)) return;
   try{
     const r = await api("/api/bulk-edit",{method:"POST", body:{targets:[...selected], op}});
     $("bulkMsg").className="msg ok"; $("bulkMsg").textContent = r.message;
@@ -970,7 +972,7 @@ $("btnDup").onclick = async ()=>{
 // ---- CSV ----
 $("btnCsvImport").onclick = async ()=>{
   const f = $("csvFile").files[0];
-  if(!f){ $("csvMsg").className="msg err"; $("csvMsg").textContent="ファイルを選択してください"; return; }
+  if(!f){ $("csvMsg").className="msg err"; $("csvMsg").textContent="请选择文件"; return; }
   const fd = new FormData(); fd.append("file", f);
   try{
     const r = await api("/api/csv-import",{method:"POST", body:fd});
@@ -982,10 +984,10 @@ $("btnCsvImport").onclick = async ()=>{
 
 $("btnCsvUpdate").onclick = async ()=>{
   const f = $("csvUpdFile").files[0];
-  if(!f){ $("csvUpdMsg").className="msg err"; $("csvUpdMsg").textContent="ファイルを選択してください"; return; }
-  if(!confirm("CSVの内容で既存商品を上書きします。\n\n・空欄の列は変更しません\n・画像と在庫数は変更しません\n\n取り込み後は［RMSに反映］を実行するまで楽天側は変わりません。\nこのまま取り込みますか？")) return;
+  if(!f){ $("csvUpdMsg").className="msg err"; $("csvUpdMsg").textContent="请选择文件"; return; }
+  if(!confirm("将用CSV内容更新本机已有商品。\n\n· 空白单元格不覆盖原值\n· 不修改图片和库存数量\n\n执行“提交到RMS”前，不会改变乐天店铺数据。\n是否继续导入？")) return;
   const fd = new FormData(); fd.append("file", f);
-  $("csvUpdMsg").className="msg"; $("csvUpdMsg").textContent="取り込み中...";
+  $("csvUpdMsg").className="msg"; $("csvUpdMsg").textContent="导入中...";
   try{
     const r = await api("/api/csv-update",{method:"POST", body:fd});
     $("csvUpdMsg").className = "msg " + (r.errors.length?"err":"ok");
@@ -999,12 +1001,12 @@ async function loadApply(){
   const d = await api("/api/items?only=edited&per=200");
   $("applyRows").innerHTML = d.items.map(it=>`
     <tr><td>${esc(it.manage_number)}</td><td>${esc(it.title)}</td>
-    <td>${it.is_new?'<span class="badge new">新規登録</span>':'<span class="badge edited">更新</span>'}</td></tr>`).join("");
+    <td>${it.is_new?'<span class="badge new">新增商品</span>':'<span class="badge edited">更新</span>'}</td></tr>`).join("");
   $("applyInfo").textContent = `未反映 ${d.total}件`;
 }
 $("btnApplyRefresh").onclick = loadApply;
 $("btnApplyAll").onclick = async ()=>{
-  if(!confirm("未反映の変更をすべてRMSへ送信します。よろしいですか？")) return;
+  if(!confirm("将把全部待提交修改发送到RMS（演示模式仅操作模拟数据）。是否继续？")) return;
   try{
     await api("/api/apply",{method:"POST", body:{targets:[]}});
     $("applyProgress").style.display="block";
@@ -1019,43 +1021,43 @@ $("btnApplyAll").onclick = async ()=>{
   }catch(e){ alert(e.message); }
 };
 
-// ---- 予約 ----
-const JOB_STATUS = {pending:"待機中", running:"実行中", done:"完了", error:"エラー",
-                    canceled:"取消済", needs_confirm:"要確認（未実行）"};
+// ---- 预约 ----
+const JOB_STATUS = {pending:"等待执行", running:"执行中", done:"完成", error:"错误",
+                    canceled:"已取消", needs_confirm:"待确认（未执行）"};
 const JOB_COLOR = {pending:"#555", running:"#e08000", done:"#0a7d32", error:"#c00",
                    canceled:"#888", needs_confirm:"#c00"};
 async function loadJobs(){
   const d = await api("/api/jobs");
   $("jobRows").innerHTML = d.jobs.map(j=>{
-    const desc = [(j.restore_price?"価格を戻す":""),
-      ({snapshot:"期間を戻す",clear:"期間を解除"}[j.period_mode]||"")].filter(x=>x).join("・");
+    const desc = [(j.restore_price?"恢复价格":""),
+      ({snapshot:"恢复销售期间",clear:"取消销售期间"}[j.period_mode]||"")].filter(x=>x).join("・");
     const ops = [];
     if (["pending","needs_confirm","error"].includes(j.status))
-      ops.push(`<button class="btn ghost jobRun" data-id="${j.id}" style="padding:2px 8px">今すぐ実行</button>
+      ops.push(`<button class="btn ghost jobRun" data-id="${j.id}" style="padding:2px 8px">立即执行</button>
                 <button class="btn sub jobCancel" data-id="${j.id}" style="padding:2px 8px">取消</button>`);
     return `<tr>
       <td>${j.id}</td><td>${esc(j.name)}</td><td>${esc((j.run_at||"").replace("T"," "))}</td>
       <td>${j.targetCount}件</td><td>${esc(desc)}</td>
-      <td style="color:${JOB_COLOR[j.status]||"#555"}">${JOB_STATUS[j.status]||esc(j.status)}${j.result?`<br><span class="muted" title="${esc(j.result)}">詳細あり</span>`:""}</td>
+      <td style="color:${JOB_COLOR[j.status]||"#555"}">${JOB_STATUS[j.status]||esc(j.status)}${j.result?`<br><span class="muted" title="${esc(j.result)}">查看详情（悬停）</span>`:""}</td>
       <td>${ops.join(" ")}</td></tr>`;
-  }).join("") || '<tr><td colspan="7" class="muted">予約はありません</td></tr>';
+  }).join("") || '<tr><td colspan="7" class="muted">暂无预约</td></tr>';
   document.querySelectorAll(".jobRun").forEach(b=>b.onclick=async()=>{
-    if(!confirm(`予約#${b.dataset.id} を今すぐ実行します。よろしいですか？`)) return;
+    if(!confirm(`将立即执行预约 #${b.dataset.id}，是否继续？`)) return;
     try{ await api(`/api/jobs/${b.dataset.id}/run`,{method:"POST"}); setTimeout(loadJobs, 1000); }
     catch(e){ alert(e.message); }
   });
   document.querySelectorAll(".jobCancel").forEach(b=>b.onclick=async()=>{
-    if(!confirm(`予約#${b.dataset.id} を取り消しますか？`)) return;
+    if(!confirm(`是否取消预约 #${b.dataset.id}？`)) return;
     try{ await api(`/api/jobs/${b.dataset.id}/cancel`,{method:"POST"}); loadJobs(); }
     catch(e){ alert(e.message); }
   });
 }
 $("btnJobsRefresh").onclick = loadJobs;
 $("btnJobCreate").onclick = async ()=>{
-  if (selected.size===0){ $("jobMsg").className="msg err"; $("jobMsg").textContent="商品一覧タブで対象商品にチェックを入れてください"; return; }
+  if (selected.size===0){ $("jobMsg").className="msg err"; $("jobMsg").textContent="请先在“商品列表”中勾选目标商品"; return; }
   if (!$("jobPrice").checked && $("jobPeriod").value==="none"){
-    $("jobMsg").className="msg err"; $("jobMsg").textContent="復元する内容（価格または販売期間）を選択してください"; return; }
-  if (!confirm(`選択中の${selected.size}件について、現在の価格・販売期間を保存し、指定日時に復元する予約を作成します。\nよろしいですか？`)) return;
+    $("jobMsg").className="msg err"; $("jobMsg").textContent="请选择要恢复的内容（价格或销售期间）"; return; }
+  if (!confirm(`将保存所选 ${selected.size} 件商品的当前价格和销售期间，并创建预约，在指定时间恢复。\n是否继续？`)) return;
   try{
     const r = await api("/api/jobs",{method:"POST", body:{
       name: $("jobName").value, runAt: $("jobRunAt").value, targets:[...selected],
@@ -1065,7 +1067,7 @@ $("btnJobCreate").onclick = async ()=>{
   }catch(e){ $("jobMsg").className="msg err"; $("jobMsg").textContent = e.message; }
 };
 
-// ---- セール ----
+// ---- 促销 ----
 async function loadSale(){
   const d = await api("/api/items?only=sale&per=1");
   $("saleCount").textContent = d.total;
@@ -1075,17 +1077,17 @@ async function loadSaleHist(){
   const d = await api("/api/sale/history");
   $("saleHistRows").innerHTML = d.history.map(h=>`
     <tr><td>${h.id}</td><td>${esc(h.name)}</td><td>${esc(h.created_at)}</td><td>${h.targetCount}件</td>
-    <td><button class="btn ghost histNow" data-id="${h.id}" style="padding:2px 8px">今すぐこの値に戻す</button>
-        <button class="btn sub histSch" data-id="${h.id}" style="padding:2px 8px">日時指定で復元予約</button></td></tr>`
-  ).join("") || '<tr><td colspan="5" class="muted">履歴はまだありません（セール開始時に自動保存されます）</td></tr>';
+    <td><button class="btn ghost histNow" data-id="${h.id}" style="padding:2px 8px">立即恢复到此记录</button>
+        <button class="btn sub histSch" data-id="${h.id}" style="padding:2px 8px">预约恢复时间</button></td></tr>`
+  ).join("") || '<tr><td colspan="5" class="muted">暂无历史记录（开始促销时自动保存）</td></tr>';
   document.querySelectorAll(".histNow").forEach(b=>b.onclick=async()=>{
-    if(!confirm("この履歴の時点の価格・二重価格・販売期間に今すぐ戻します。よろしいですか？")) return;
+    if(!confirm("将立即恢复到此记录的售价、对比价和销售期间，并执行提交。是否继续？")) return;
     try{ const r=await api("/api/sale/restore",{method:"POST",body:{historyId:Number(b.dataset.id),when:"now"}});
       $("saleMsg").className="msg ok"; $("saleMsg").textContent=r.message;
     }catch(e){ alert(e.message); }
   });
   document.querySelectorAll(".histSch").forEach(b=>b.onclick=async()=>{
-    const dt = prompt("復元する日時を入力してください（例: 2026-08-31T23:59）");
+    const dt = prompt("请输入恢复时间（电脑本地时间，例如：2026-11-30T23:59）");
     if(!dt) return;
     try{ const r=await api("/api/sale/restore",{method:"POST",body:{historyId:Number(b.dataset.id),when:"schedule",runAt:dt}});
       $("saleMsg").className="msg ok"; $("saleMsg").textContent=r.message;
@@ -1099,20 +1101,20 @@ async function saleFlag(body, msg){
   }catch(e){ $("saleFlagMsg").className="msg err"; $("saleFlagMsg").textContent=e.message; }
 }
 $("btnSaleAdd").onclick = ()=>{
-  if(selected.size===0){ $("saleFlagMsg").className="msg err"; $("saleFlagMsg").textContent="商品一覧で商品を選択してください"; return; }
+  if(selected.size===0){ $("saleFlagMsg").className="msg err"; $("saleFlagMsg").textContent="请先在商品列表选择商品"; return; }
   saleFlag({targets:[...selected], value:true});
 };
 $("btnSaleRemove").onclick = ()=>{
-  if(selected.size===0){ $("saleFlagMsg").className="msg err"; $("saleFlagMsg").textContent="商品一覧で商品を選択してください"; return; }
+  if(selected.size===0){ $("saleFlagMsg").className="msg err"; $("saleFlagMsg").textContent="请先在商品列表选择商品"; return; }
   saleFlag({targets:[...selected], value:false});
 };
-$("btnSaleClear").onclick = ()=>{ if(confirm("セール対象をすべて解除しますか？")) saleFlag({clearAll:true}); };
-// ---- スーパーSALEサーチ 申請用CSV ----
+$("btnSaleClear").onclick = ()=>{ if(confirm("是否清空全部促销对象？")) saleFlag({clearAll:true}); };
+// ---- 超级SALE搜索活动申请CSV ----
 const APP_BADGE = {
-  half:   ['半額サーチ可',  '#0a7d32'],
-  normal: ['通常サーチ可',  '#e08000'],
-  ng:     ['条件未達',      '#c00'],
-  unknown:['二重価格なし',  '#888'],
+  half:   ['达到半价搜索门槛',  '#0a7d32'],
+  normal: ['达到普通搜索门槛',  '#e08000'],
+  ng:     ['未达到门槛',      '#c00'],
+  unknown:['未设置对比价',  '#888'],
 };
 async function loadSaleApplication(){
   let d;
@@ -1125,15 +1127,15 @@ async function loadSaleApplication(){
   $("appNg").textContent     = s.ng + s.unknown;
   $("appRows").innerHTML = d.rows.map(r=>{
     const [label,color] = APP_BADGE[r.category] || APP_BADGE.unknown;
-    const yen = v => v==null ? "—" : Number(v).toLocaleString()+"円";
+    const yen = v => v==null ? "—" : Number(v).toLocaleString()+"日元";
     return `<tr>
       <td>${esc(r.manageNumber)}</td>
-      <td>${esc(r.title)}${r.hidden?' <span class="badge hidden">非公開</span>':''}</td>
+      <td>${esc(r.title)}${r.hidden?' <span class="badge hidden">未公开</span>':''}</td>
       <td>${yen(r.referencePrice)}</td>
       <td>${yen(r.price)}</td>
       <td>${r.rate==null?"—":r.rate+"%"}</td>
       <td style="color:${color}">${label}</td></tr>`;
-  }).join("") || '<tr><td colspan="6" class="muted">セール対象商品がありません。商品一覧の［🏷セール］列でチェックしてください。</td></tr>';
+  }).join("") || '<tr><td colspan="6" class="muted">没有促销商品。请在商品列表的“🏷促销”列勾选商品。</td></tr>';
 }
 $("btnAppRefresh").onclick = loadSaleApplication;
 $("btnAppCsv").onclick = async ()=>{
@@ -1143,9 +1145,9 @@ $("btnAppCsv").onclick = async ()=>{
   fd.append("colB", $("appColB").value);
   const f = $("appExisting").files[0];
   if (f) fd.append("existing", f);
-  else if (!confirm("申請済みCSVを読み込んでいません。\n\nRMSの一括申請はアップロード内容で全件上書きされるため、\nすでに申請済みの商品がある場合は消えてしまいます。\n\nこのまま作成しますか？")) return;
+  else if (!confirm("尚未导入现有申请CSV。\n\nRMS批量申请会用上传内容覆盖整份申请列表，\n已有申请可能被移除。\n\n是否仍继续生成？")) return;
 
-  $("appMsg").className="msg"; $("appMsg").textContent="作成中...";
+  $("appMsg").className="msg"; $("appMsg").textContent="生成中...";
   try{
     const r = await fetch("/api/sale/application-csv", {method:"POST", body:fd});
     if(!r.ok){ const j = await r.json().catch(()=>({})); throw new Error(j.message || `HTTP ${r.status}`); }
@@ -1161,20 +1163,20 @@ $("btnAppCsv").onclick = async ()=>{
     a.click();
     setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 5000);
     $("appMsg").className="msg ok";
-    $("appMsg").textContent="ダウンロードしました。RMS［イベント商品申請→一括申請］でアップロードしてください。";
+    $("appMsg").textContent="已下载。请核对后，在RMS“イベント商品申請→一括申請”中自行上传。";
   }catch(e){ $("appMsg").className="msg err"; $("appMsg").textContent=e.message; }
 };
 
 $("btnQuit").onclick = async ()=>{
-  if(!confirm("ツールを終了します。よろしいですか？\n\n※編集内容は保存済みです。\n※予約された自動復元は、ツール停止中は実行されません。")) return;
+  if(!confirm("是否退出工具？\n\n已保存的编辑会保留。\n停止期间不执行自动恢复；重启后可能补执行到期预约。")) return;
   try { await fetch("/api/shutdown", {method:"POST"}); } catch(e) {}
   document.body.innerHTML =
     '<div style="padding:60px 20px;text-align:center;font-family:inherit">' +
-    '<h2 style="color:#bf0000">ツールを終了しました</h2>' +
-    '<p class="muted">このタブは閉じて構いません。<br>' +
-    '再開するには rms-item-tool.exe をもう一度ダブルクリックしてください。</p></div>';
+    '<h2 style="color:#bf0000">工具已退出</h2>' +
+    '<p class="muted">可以关闭此标签页。<br>' +
+    '再次使用时，请双击安装文件夹中的“启动工具.cmd”。</p></div>';
 };
-// 値だけ入れて［値引き方法］が未選択のまま実行され、価格変更が黙ってスキップされるのを防ぐ
+// 数值だけ入れて［降价方式］が未選択のまま実行され、价格修改が黙ってスキップされるのを防ぐ
 $("salePriceValue").oninput = ()=>{
   if($("salePriceValue").value !== "" && !$("salePriceMode").value) $("salePriceMode").value = "percent";
 };
@@ -1199,7 +1201,7 @@ $("btnSaleStart").onclick = async ()=>{
     restorePeriodMode: $("saleRestorePeriod").value,
   };
   const cnt = $("saleCount").textContent;
-  if(!confirm(`セール対象 ${cnt}件 に対して実行します：\n・現在の値を履歴に保存\n・セール設定を適用してRMSに反映\n${body.autoRestore?`・${body.restoreAt.replace("T"," ")} に自動復元予約を作成\n`:""}\nよろしいですか？`)) return;
+  if(!confirm(`将对 ${cnt} 件促销商品执行：\n· 保存当前值到历史记录\n· 应用促销设置并提交到RMS\n${body.autoRestore?`· 创建自动恢复预约：${body.restoreAt.replace("T"," ")}（电脑本地时间）\n`:""}\n是否继续？`)) return;
   try{
     const r = await api("/api/sale/start",{method:"POST", body});
     $("saleMsg").className="msg ok"; $("saleMsg").textContent=r.message;
@@ -1207,7 +1209,7 @@ $("btnSaleStart").onclick = async ()=>{
   }catch(e){ $("saleMsg").className="msg err"; $("saleMsg").textContent=e.message; }
 };
 
-// ---- ログ ----
+// ---- 操作日志 ----
 async function loadLogs(){
   const d = await api("/api/logs");
   $("logRows").innerHTML = d.logs.map(l=>`
@@ -1216,27 +1218,27 @@ async function loadLogs(){
 }
 $("btnLogRefresh").onclick = loadLogs;
 
-// ---- 設定 ----
+// ---- 设置 ----
 async function loadCfg(){
   const c = await api("/api/settings");
   $("cfgDemo").checked = !!c.demoMode;
   $("cfgWait").value = c.waitMs||700;
   $("cfgSecret").placeholder = c.serviceSecret || "SP3xxxxxxxx";
   $("cfgLicense").placeholder = c.licenseKey || "SL3xxxxxxxx";
-  $("demoBadge").textContent = c.demoMode ? "◉ デモモードで動作中（APIには接続しません）" : (c.hasKeys?"本番モード":"⚠ APIキー未設定");
+  $("demoBadge").textContent = c.demoMode ? "◉ 演示模式（不连接RMS API）" : (c.hasKeys?"正式模式":"⚠ 尚未设置API密钥");
 }
 $("btnSaveCfg").onclick = async ()=>{
   const body = { demoMode: $("cfgDemo").checked, waitMs: Number($("cfgWait").value)||700 };
   if ($("cfgSecret").value) body.serviceSecret = $("cfgSecret").value.trim();
   if ($("cfgLicense").value) body.licenseKey = $("cfgLicense").value.trim();
   await api("/api/settings",{method:"POST", body});
-  $("cfgMsg").className="msg ok"; $("cfgMsg").textContent="保存しました";
+  $("cfgMsg").className="msg ok"; $("cfgMsg").textContent="已保存";
   $("cfgSecret").value=""; $("cfgLicense").value="";
   loadCfg();
 };
 $("btnReset").onclick = async ()=>{
-  if(!confirm("APIキー・商品データ・ログをすべて削除して初期状態に戻します。\nこの操作は取り消せません（楽天RMS側のデータは変わりません）。\n実行しますか？")) return;
-  if(!confirm("本当によろしいですか？（配布前の初期化用です）")) return;
+  if(!confirm("将删除本机全部API密钥、商品数据和日志，恢复初始状态。\n此操作不可撤销（不改变乐天RMS数据）。\n是否执行？")) return;
+  if(!confirm("请再次确认：是否初始化？（用于分享工具前清理本机数据）")) return;
   try{
     const r = await api("/api/reset",{method:"POST"});
     $("resetMsg").className="msg ok"; $("resetMsg").textContent=r.message;
@@ -1244,7 +1246,7 @@ $("btnReset").onclick = async ()=>{
   }catch(e){ $("resetMsg").className="msg err"; $("resetMsg").textContent=e.message; }
 };
 $("btnTestCfg").onclick = async ()=>{
-  $("cfgMsg").className="msg"; $("cfgMsg").textContent="接続テスト中...";
+  $("cfgMsg").className="msg"; $("cfgMsg").textContent="正在测试连接...";
   try{ const r = await api("/api/test-connection",{method:"POST"});
     $("cfgMsg").className="msg ok"; $("cfgMsg").textContent=r.message;
   }catch(e){ $("cfgMsg").className="msg err"; $("cfgMsg").textContent=e.message; }
